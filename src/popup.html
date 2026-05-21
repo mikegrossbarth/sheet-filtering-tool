@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sheet Filtering Tool</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Sheet Review</h1>
+        <p id="status">Open a Google Sheet to review visible cells.</p>
+      </header>
+
+      <section class="selection-panel">
+        <label for="filterDropdownButton">Filter Selection</label>
+        <div class="filter-dropdown">
+          <button id="filterDropdownButton" type="button" class="filter-dropdown-button">Select saved filters</button>
+          <div id="filterDropdownMenu" class="filter-dropdown-menu" hidden></div>
+        </div>
+        <div class="selection-actions">
+          <label class="toggle-row"><input id="makeNewFilter" type="checkbox"> Make Custom Filter</label>
+          <button id="editFilter" type="button" class="secondary">Edit Filter</button>
+        </div>
+      </section>
+
+      <section id="customOptions" class="custom-options" hidden>
+        <div class="builder-header">
+          <div class="panel-title">Custom Filter</div>
+        </div>
+
+        <div id="filterBuilderShell" hidden>
+          <label for="filterName">Filter Name</label>
+          <input id="filterName" type="text" placeholder="Name this filter">
+
+          <label for="rulesSource">Sync Rules Source</label>
+          <select id="rulesSource">
+            <option value="none">No synced rules file</option>
+            <option value="keep">Google Keep rules file</option>
+            <option value="sheet">Google Sheets rules file</option>
+          </select>
+          <div id="rulesSyncStatus" class="keep-status">No synced rules file selected.</div>
+          <div id="keepRulesControls" class="source-controls">
+            <button id="openKeep" type="button" class="secondary wide">Open Keep Rule Note</button>
+          </div>
+
+          <div id="sheetRulesControls" class="source-controls">
+            <label for="sheetRulesUrl">Google Sheets rules file URL</label>
+            <input id="sheetRulesUrl" type="url" placeholder="Paste published/exportable Google Sheet URL">
+          </div>
+
+          <div class="rule-builder-header">
+            <div class="panel-title">Custom Filter Options</div>
+          </div>
+
+        <div id="filterBuilder" class="filter-builder" hidden>
+          <div id="filterRules" class="filter-rules"></div>
+        </div>
+
+          <div class="builder-footer">
+            <button id="saveFilter" type="button" class="primary">Save Filter</button>
+            <button id="clearFilter" type="button" class="secondary">Clear Filter</button>
+            <button id="deleteFilter" type="button" class="secondary danger">Delete Filter</button>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <button id="clearHighlights" type="button" class="secondary">Clear</button>
+        <button id="reviewSheet" type="button" class="primary">Review Sheet</button>
+      </footer>
+    </main>
+
+    <div id="editFilterModal" class="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="editFilterTitle">
+        <h2 id="editFilterTitle">Edit Filter</h2>
+        <label for="editFilterSelect">Choose one filter</label>
+        <select id="editFilterSelect"></select>
+        <div class="modal-actions">
+          <button id="cancelEditFilter" type="button" class="secondary">Cancel</button>
+          <button id="confirmEditFilter" type="button" class="primary">Edit Filter</button>
+        </div>
+      </section>
+    </div>
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

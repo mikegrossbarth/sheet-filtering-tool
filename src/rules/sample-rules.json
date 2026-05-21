@@ -1,0 +1,23 @@
+{
+  "arenaClub": {
+    "sports": ["baseball", "basketball", "football"],
+    "includeKeywords": ["sealed", "hobby", "box"],
+    "excludeKeywords": ["case break", "single", "damaged"],
+    "minPrice": 25,
+    "maxPrice": 750
+  },
+  "cardsHq": {
+    "sports": ["baseball", "basketball", "football", "soccer"],
+    "includeKeywords": ["wax", "sealed", "hobby"],
+    "excludeKeywords": ["retail", "blaster", "loose pack"],
+    "minPrice": 50,
+    "maxPrice": 1200
+  },
+  "custom": {
+    "sports": [],
+    "includeKeywords": [],
+    "excludeKeywords": [],
+    "minPrice": null,
+    "maxPrice": null
+  }
+}

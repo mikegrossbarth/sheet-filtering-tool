@@ -1,0 +1,8 @@
+{
+  "name": "sheet-filtering-tool",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "node --check src/background.js && node --check src/popup.js && node --check src/sheets-content.js && node --check src/keep-content.js && node --check src/rules-engine.js && node tests/rules-engine.test.js && node tests/manifest.test.js"
+  }
+}
