@@ -3,11 +3,18 @@
   "name": "Sheet Filtering Tool",
   "description": "Reviews open Google Sheets against saved custom filtering rules.",
   "version": "0.1.0",
-  "permissions": ["activeTab", "storage", "tabs"],
+  "permissions": ["activeTab", "identity", "storage", "tabs"],
   "host_permissions": [
     "https://docs.google.com/*",
-    "https://keep.google.com/*"
+    "https://keep.google.com/*",
+    "https://accounts.google.com/*",
+    "https://*.googleusercontent.com/*",
+    "https://sheets.googleapis.com/*"
   ],
+  "oauth2": {
+    "client_id": "414248778969-8s9nifluqf5qau3cokqg192crnapcvrq.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/spreadsheets"]
+  },
   "background": {
     "service_worker": "src/background.js",
     "type": "module"
@@ -18,7 +25,7 @@
   "content_scripts": [
     {
       "matches": ["https://docs.google.com/spreadsheets/*"],
-      "js": ["src/rules-engine.js", "src/sheets-content.js"],
+      "js": ["src/player-sport-data.js", "src/rules-engine.js", "src/sheets-content.js"],
       "css": ["src/sheets-content.css"],
       "run_at": "document_idle"
     },
@@ -33,7 +40,9 @@
       "resources": [
         "src/popup.html",
         "src/popup.css",
-        "src/popup.js"
+        "src/popup.js",
+        "src/player-sport-data.js",
+        "src/rules-engine.js"
       ],
       "matches": ["https://docs.google.com/*"]
     }

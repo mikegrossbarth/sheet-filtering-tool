@@ -12,6 +12,7 @@ const state = {
   draftFilter: structuredClone(DEFAULT_FILTER),
   activeRuleIndex: 0
 };
+const GRADE_COMPANIES = ["psa", "bgs", "sgc", "cgc"];
 
 const statusEl = document.querySelector("#status");
 const reviewButton = document.querySelector("#reviewSheet");
@@ -23,6 +24,7 @@ const editFilterButton = document.querySelector("#editFilter");
 const customOptions = document.querySelector("#customOptions");
 const filterBuilderShell = document.querySelector("#filterBuilderShell");
 const filterBuilder = document.querySelector("#filterBuilder");
+const ruleBuilderHeader = document.querySelector("#ruleBuilderHeader");
 const filterNameEl = document.querySelector("#filterName");
 const saveFilterButton = document.querySelector("#saveFilter");
 const clearFilterButton = document.querySelector("#clearFilter");
@@ -34,6 +36,8 @@ const openKeepButton = document.querySelector("#openKeep");
 const keepRulesControls = document.querySelector("#keepRulesControls");
 const sheetRulesControls = document.querySelector("#sheetRulesControls");
 const rulesSyncStatusEl = document.querySelector("#rulesSyncStatus");
+const rulesPreviewEl = document.querySelector("#rulesPreview");
+const activeRulesPreviewEl = document.querySelector("#activeRulesPreview");
 const editFilterModal = document.querySelector("#editFilterModal");
 const editFilterSelect = document.querySelector("#editFilterSelect");
 const cancelEditFilterButton = document.querySelector("#cancelEditFilter");
@@ -86,6 +90,7 @@ async function init() {
     ? "Pick or build a custom filter, then review the open sheet."
     : "This extension runs from an open Google Sheet.";
   await refreshRulesSyncStatus();
+  await refreshSelectedFilterPreview();
 }
 
 filterDropdownButton.addEventListener("click", () => {
@@ -157,6 +162,8 @@ saveFilterButton.addEventListener("click", async () => {
     ...cloneFilter(state.draftFilter),
     id,
     name,
+    rulesSource: sourceEl.value,
+    sheetRulesUrl: sheetRulesUrlEl.value.trim(),
     updatedAt: new Date().toISOString()
   };
 
@@ -217,6 +224,8 @@ sourceEl.addEventListener("change", async () => {
   await refreshRulesSyncStatus();
 });
 sheetRulesUrlEl.addEventListener("input", persistSettings);
+sheetRulesUrlEl.addEventListener("change", refreshSheetWorkbookPreview);
+sheetRulesUrlEl.addEventListener("blur", refreshSheetWorkbookPreview);
 
 reviewButton.addEventListener("click", async () => {
   const sheetTab = await getActiveSheetTab();
@@ -244,7 +253,10 @@ reviewButton.addEventListener("click", async () => {
     if (response?.error) {
       throw new Error(response.error);
     }
-    setStatus(`Reviewed ${response.reviewed} cells. Highlighted ${response.highlighted}.`);
+    const fillSuffix = response.fillError ? ` Fill color failed: ${response.fillError}` : "";
+    const exportSuffix = response.exportError ? ` Review warning: ${response.exportError}` : "";
+    const duplicateSuffix = response.duplicateWarnings ? ` ${response.duplicateWarnings} duplicate rows marked yellow.` : "";
+    setStatus(fillSuffix || exportSuffix || `Review complete.${duplicateSuffix}`);
   } catch (error) {
     setStatus(error?.message || "Review failed.");
   } finally {
@@ -293,6 +305,7 @@ function renderSavedFilters() {
       updateFilterDropdownButton();
       updateEditButtonState();
       await persistSettings();
+      await refreshSelectedFilterPreview();
     });
   });
   updateFilterDropdownButton();
@@ -358,7 +371,7 @@ function buildRuleHtml(rule, ruleIndex) {
 
     <label>Grade Ranges</label>
     <div class="grade-grid">
-      ${["psa", "bgs", "sgc"].map((company) => buildGradeHtml(company, rule.grades?.[company] || {})).join("")}
+      ${GRADE_COMPANIES.map((company) => buildGradeHtml(company, rule.grades?.[company] || {})).join("")}
     </div>
 
     <button type="button" class="secondary compact" data-action="add-rule">Add Rule</button>
@@ -481,21 +494,28 @@ async function loadRulesPayload() {
     .map((id) => state.savedFilters.find((filter) => filter.id === id))
     .filter(Boolean)
     .map(cloneFilter);
+  const hasSavedFilterRules = customFilters.some((filter) => filter.rules?.some(isRuleConfigured));
 
-  if (sourceEl.value === "none") {
+  const activeSource = activeRulesSource();
+  const activeSheetUrl = activeSheetRulesUrl();
+
+  if (activeSource === "none") {
     return { source: "none", text: "", customFilters };
   }
 
-  if (sourceEl.value === "sheet") {
-    const text = await fetchGoogleSheetRulesText(sheetRulesUrlEl.value.trim());
-    return { source: "sheet", text, customFilters };
+  if (activeSource === "sheet") {
+    const workbook = await fetchGoogleSheetRulesWorkbook(activeSheetUrl);
+    renderSheetWorkbookStatus(workbook);
+    return { source: "sheet", text: workbook.text, customFilters, workbook };
   }
 
   const stored = await chrome.storage.local.get(["sheetReviewRulesNote"]);
   const note = stored.sheetReviewRulesNote || {};
   if (!note.text?.trim()) {
-    chrome.runtime.sendMessage({ action: "openSheetReviewRulesNote" });
-    throw new Error("Open the Keep rule note once so the extension can sync it.");
+    if (!hasSavedFilterRules) {
+      throw new Error("Google Keep rules are not synced. Open the Keep rule note, then run Review Sheet again.");
+    }
+    return { source: "keep", text: "", customFilters };
   }
 
   return { source: "keep", text: note.text, customFilters };
@@ -504,13 +524,19 @@ async function loadRulesPayload() {
 async function refreshRulesSyncStatus() {
   if (sourceEl.value === "none") {
     rulesSyncStatusEl.textContent = "No synced rules file selected.";
+    renderRulesPreview("");
     return;
   }
 
   if (sourceEl.value === "sheet") {
-    rulesSyncStatusEl.textContent = sheetRulesUrlEl.value.trim()
-      ? "Google Sheets rules file URL set."
-      : "Add a Google Sheets rules file URL.";
+    if (!sheetRulesUrlEl.value.trim()) {
+      rulesSyncStatusEl.textContent = "Add a Google Sheets rules file URL.";
+      renderRulesPreview("");
+      return;
+    }
+    const stored = await chrome.storage.local.get(["sheetReviewRulesWorkbook"]);
+    const workbook = stored.sheetReviewRulesWorkbook || {};
+    renderSheetWorkbookStatus(workbook);
     return;
   }
 
@@ -518,6 +544,7 @@ async function refreshRulesSyncStatus() {
   const note = stored.sheetReviewRulesNote || {};
   if (!note.text) {
     rulesSyncStatusEl.textContent = "Keep rules not synced yet.";
+    renderRulesPreview("");
     return;
   }
 
@@ -525,35 +552,142 @@ async function refreshRulesSyncStatus() {
   const when = syncedAt && !Number.isNaN(syncedAt.getTime())
     ? syncedAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : "recently";
-  rulesSyncStatusEl.textContent = `Keep rules synced ${when}.`;
+  const title = note.title || firstMeaningfulLine(note.text) || "Untitled Keep note";
+  rulesSyncStatusEl.textContent = `Keep rules synced from "${title}" ${when}.`;
+  renderRulesPreview(note.text);
 }
 
-async function fetchGoogleSheetRulesText(url) {
+function renderRulesPreview(text, tabSummaries = []) {
+  const tabSummaryLines = tabSummaries
+    .filter((tab) => tab.rules)
+    .map((tab) => `${tab.title}: ${tab.rules} rules`);
+  const summary = [...tabSummaryLines, ...summarizeParsedRules(text)];
+  renderPreviewTarget(rulesPreviewEl, summary);
+  renderPreviewTarget(activeRulesPreviewEl, summary);
+}
+
+function renderPreviewTarget(target, summary) {
+  if (!target) return;
+  if (!summary.length) {
+    target.hidden = true;
+    target.textContent = "";
+    return;
+  }
+  target.hidden = false;
+  target.innerHTML = summary.map((line) => `<div>${escapeHtml(line)}</div>`).join("");
+}
+
+function summarizeParsedRules(text) {
+  const ruleSets = window.AutoSheetReviewRules?.buildRuleSets?.(text, ["custom"], []) || [];
+  const custom = ruleSets[0];
+  if (!custom?.configured) return [];
+
+  const lines = [];
+  if (custom.sports?.length) lines.push(`Sports: ${custom.sports.join(", ")}`);
+  if (custom.minPrice != null || custom.maxPrice != null) {
+    lines.push(`Price: ${custom.minPrice ?? 0}-${custom.maxPrice ?? "any"}`);
+  }
+  custom.rangeRules?.forEach((rule) => {
+    lines.push(`Range: ${rule.matcher || "all"} ${rule.min}-${rule.max}`);
+  });
+  custom.customRules?.forEach((rule, index) => {
+    const parts = [];
+    if (rule.sport) parts.push(rule.sport);
+    if (rule.priceRanges?.length) {
+      parts.push(rule.priceRanges.map((range) => `${range.min}-${range.max === Number.MAX_SAFE_INTEGER ? "any" : range.max}`).join(", "));
+    }
+    const allowed = Object.entries(rule.grades || {})
+      .filter(([, grade]) => grade.allowed !== false)
+      .map(([company, grade]) => `${company.toUpperCase()} ${grade.hasRange ? `${grade.min}-${grade.max}` : "any"}`);
+    const blocked = Object.entries(rule.grades || {})
+      .filter(([, grade]) => grade.allowed === false)
+      .map(([company]) => company.toUpperCase());
+    if (allowed.length) parts.push(`Allowed: ${allowed.join(", ")}`);
+    if (blocked.length) parts.push(`Blocked: ${blocked.join(", ")}`);
+    lines.push(`Rule ${index + 1}: ${parts.join(" | ") || "all"}`);
+  });
+  return lines.slice(0, 6);
+}
+
+function firstMeaningfulLine(text) {
+  return String(text || "").split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+}
+
+async function fetchGoogleSheetRulesWorkbook(url) {
   if (!url) {
     throw new Error("Add a Google Sheets rules file URL.");
   }
 
-  const exportUrl = toSheetCsvExportUrl(url);
-  const response = await fetch(exportUrl);
-  if (!response.ok) {
-    throw new Error(`Could not read Google Sheets rules file (${response.status}).`);
+  const response = await chrome.runtime.sendMessage({ action: "readRulesWorkbook", url });
+  if (!response?.success) {
+    throw new Error(response?.error || "Could not read Google Sheets rules workbook.");
   }
-  return await response.text();
+  const workbook = {
+    title: response.title || "Google Sheets rules file",
+    text: response.text || "",
+    tabSummaries: response.tabSummaries || [],
+    loadedAt: new Date().toISOString()
+  };
+  await chrome.storage.local.set({ sheetReviewRulesWorkbook: workbook });
+  return workbook;
 }
 
-function toSheetCsvExportUrl(value) {
-  const url = new URL(value);
-  if (!url.hostname.includes("docs.google.com")) {
-    throw new Error("Use a Google Sheets URL for the rules file.");
+async function refreshSheetWorkbookPreview() {
+  if (sourceEl.value !== "sheet" || !sheetRulesUrlEl.value.trim()) return;
+  try {
+    rulesSyncStatusEl.textContent = "Loading Google Sheets rules...";
+    const workbook = await fetchGoogleSheetRulesWorkbook(sheetRulesUrlEl.value.trim());
+    renderSheetWorkbookStatus(workbook);
+  } catch (error) {
+    rulesSyncStatusEl.textContent = error?.message || "Could not load Google Sheets rules.";
+    renderRulesPreview("");
+  }
+}
+
+function renderSheetWorkbookStatus(workbook) {
+  rulesSyncStatusEl.textContent = workbook?.title
+    ? `Google Sheets rules loaded from "${workbook.title}".`
+    : "Google Sheets rules file URL set. Rules load on review.";
+  renderRulesPreview(workbook?.text || "", workbook?.tabSummaries || []);
+}
+
+async function refreshSelectedFilterPreview() {
+  const selected = selectedSavedFilter();
+  if (!selected) {
+    renderRulesPreview("");
+    return;
   }
 
-  const match = url.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
-  if (!match) {
-    return value;
+  if (selected.rulesSource === "sheet" && selected.sheetRulesUrl) {
+    try {
+      const workbook = await fetchGoogleSheetRulesWorkbook(selected.sheetRulesUrl);
+      renderSheetWorkbookStatus(workbook);
+    } catch (error) {
+      rulesSyncStatusEl.textContent = error?.message || "Could not load selected Google Sheet rules.";
+      renderRulesPreview("");
+    }
+    return;
   }
 
-  const gid = url.hash.match(/gid=(\d+)/)?.[1] || url.searchParams.get("gid") || "0";
-  return `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv&gid=${gid}`;
+  if (selected.rulesSource === "keep") {
+    const stored = await chrome.storage.local.get(["sheetReviewRulesNote"]);
+    renderRulesPreview(stored.sheetReviewRulesNote?.text || "");
+    return;
+  }
+
+  renderRulesPreview("");
+}
+
+function selectedSavedFilter() {
+  return state.savedFilters.find((filter) => filter.id === state.selectedFilterIds[0]) || null;
+}
+
+function activeRulesSource() {
+  return selectedSavedFilter()?.rulesSource || sourceEl.value;
+}
+
+function activeSheetRulesUrl() {
+  return selectedSavedFilter()?.sheetRulesUrl || sheetRulesUrlEl.value.trim();
 }
 
 function sportOptions(selected) {
@@ -587,7 +721,8 @@ function createEmptyRule() {
     grades: {
       psa: { allowed: true, min: "", max: "" },
       bgs: { allowed: true, min: "", max: "" },
-      sgc: { allowed: true, min: "", max: "" }
+      sgc: { allowed: true, min: "", max: "" },
+      cgc: { allowed: true, min: "", max: "" }
     }
   };
 }
@@ -596,6 +731,8 @@ function cloneFilter(filter) {
   const cloned = structuredClone(filter || DEFAULT_FILTER);
   cloned.rules = Array.isArray(cloned.rules) && cloned.rules.length ? cloned.rules : [createEmptyRule()];
   cloned.rules = cloned.rules.map(normalizeRule);
+  cloned.rulesSource ||= "none";
+  cloned.sheetRulesUrl ||= "";
   return cloned;
 }
 
@@ -608,7 +745,8 @@ function normalizeRule(rule) {
     grades: {
       psa: { allowed: rule.grades?.psa?.allowed !== false, min: rule.grades?.psa?.min || "", max: rule.grades?.psa?.max || "" },
       bgs: { allowed: rule.grades?.bgs?.allowed !== false, min: rule.grades?.bgs?.min || "", max: rule.grades?.bgs?.max || "" },
-      sgc: { allowed: rule.grades?.sgc?.allowed !== false, min: rule.grades?.sgc?.min || "", max: rule.grades?.sgc?.max || "" }
+      sgc: { allowed: rule.grades?.sgc?.allowed !== false, min: rule.grades?.sgc?.min || "", max: rule.grades?.sgc?.max || "" },
+      cgc: { allowed: rule.grades?.cgc?.allowed !== false, min: rule.grades?.cgc?.min || "", max: rule.grades?.cgc?.max || "" }
     }
   };
 }
@@ -621,9 +759,24 @@ function summarizeRule(rule) {
     .filter((range) => range.min || range.max)
     .map((range) => `${range.min || "0"}-${range.max || "any"}`);
   if (priceRanges.length) parts.push(`$${priceRanges.join(", $")}`);
-  const blocked = ["psa", "bgs", "sgc"].filter((company) => rule.grades?.[company]?.allowed === false);
+  const blocked = GRADE_COMPANIES.filter((company) => rule.grades?.[company]?.allowed === false);
   if (blocked.length) parts.push(`Blocked: ${blocked.map((value) => value.toUpperCase()).join(", ")}`);
   return parts.join(" | ") || "No conditions set";
+}
+
+function isRuleConfigured(rule) {
+  return Boolean(
+    selectedRuleText(rule.sport, rule.sportOther) ||
+    (rule.priceRanges || []).some((range) => range.min || range.max) ||
+    GRADE_COMPANIES.some((company) => {
+      const grade = rule.grades?.[company] || {};
+      return grade.allowed === false || grade.min || grade.max;
+    })
+  );
+}
+
+function selectedRuleText(value, otherValue) {
+  return value === "custom" ? String(otherValue || "").trim() : String(value || "").trim();
 }
 
 function createId() {
@@ -642,16 +795,29 @@ function setStatus(message) {
   statusEl.textContent = message;
 }
 
+function formatSportSummary(response) {
+  const sports = Object.entries(response?.sportCounts || {})
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 4)
+    .map(([sport, count]) => `${sport}: ${count}`);
+  return sports.length ? ` Sports ${sports.join(", ")}.` : " No player/sport correlations found.";
+}
+
 function syncBuilderVisibility() {
   makeNewFilterButton.checked = state.builderOpen && state.editingFilterId === "unsaved";
+  const usesSyncedRules = sourceEl.value === "keep" || sourceEl.value === "sheet";
   customOptions.hidden = !state.builderOpen;
   filterBuilderShell.hidden = !state.builderOpen;
-  filterBuilder.hidden = !state.builderOpen;
+  ruleBuilderHeader.hidden = usesSyncedRules;
+  filterBuilder.hidden = usesSyncedRules || !state.builderOpen;
 }
 
 function syncRulesSourceVisibility() {
   keepRulesControls.hidden = sourceEl.value !== "keep";
   sheetRulesControls.hidden = sourceEl.value !== "sheet";
+  const usesSyncedRules = sourceEl.value === "keep" || sourceEl.value === "sheet";
+  ruleBuilderHeader.hidden = usesSyncedRules;
+  filterBuilder.hidden = usesSyncedRules || !state.builderOpen;
 }
 
 function getSelectedFilterIds() {

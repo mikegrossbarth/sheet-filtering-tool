@@ -6,15 +6,70 @@
   };
 
   const CATEGORY_ALIASES = {
-    soccer: ["soccer", "football"],
     football: ["football", "nfl"],
+    soccer: ["soccer", "futbol", "premier league", "uefa", "fifa"],
     baseball: ["baseball", "mlb"],
     basketball: ["basketball", "b-ball", "bball", "nba"],
+    "b-ball": ["basketball", "b-ball", "bball", "nba"],
+    bball: ["basketball", "b-ball", "bball", "nba"],
+    nba: ["basketball", "b-ball", "bball", "nba"],
     hockey: ["hockey", "nhl"],
+    nhl: ["hockey", "nhl"],
     pokemon: ["pokemon", "poke"],
     poke: ["pokemon", "poke"],
     "one piece": ["one piece", "onepiece", "one_piece", "1 piece"]
   };
+
+  const PLAYER_SPORT_HINTS = {
+    "victor wembanyama": "basketball",
+    "stephen curry": "basketball",
+    "steph curry": "basketball",
+    "nikola jokic": "basketball",
+    "luka doncic": "basketball",
+    "giannis antetokounmpo": "basketball",
+    "anthony edwards": "basketball",
+    "kevin durant": "basketball",
+    "ja morant": "basketball",
+    "jayson tatum": "basketball",
+    "shai gilgeous alexander": "basketball",
+    "lebron james": "basketball",
+    "michael jordan": "basketball",
+    "kobe bryant": "basketball",
+    "tom brady": "football",
+    "patrick mahomes": "football",
+    "cj stroud": "football",
+    "shohei ohtani": "baseball",
+    "mike trout": "baseball",
+    "aaron judge": "baseball",
+    "lionel messi": "soccer",
+    "cristiano ronaldo": "soccer",
+    "connor bedard": "hockey",
+    "wayne gretzky": "hockey"
+  };
+
+  const PLAYER_DISPLAY_NAMES = {};
+  const PARTIAL_PLAYER_HINTS = {};
+  const GRADE_COMPANIES = ["psa", "bgs", "sgc", "cgc"];
+
+  const PRODUCT_WORDS = new Set([
+    "topps", "bowman", "chrome", "sapphire", "finest", "heritage", "stadium", "club",
+    "panini", "donruss", "optic", "prizm", "select", "mosaic", "contenders", "national",
+    "treasures", "flawless", "immaculate", "obsidian", "revolution", "absolute", "elite",
+    "upper", "deck", "sp", "young", "guns", "pokemon", "one", "piece"
+  ]);
+
+  Object.entries(window.AutoSheetReviewPlayerSports?.players || {}).forEach(([player, value]) => {
+    if (typeof value === "string") {
+      PLAYER_SPORT_HINTS[player] = value;
+      return;
+    }
+    PLAYER_SPORT_HINTS[player] = value.sport;
+    if (value.displayName) PLAYER_DISPLAY_NAMES[player] = value.displayName;
+  });
+  Object.keys(PLAYER_SPORT_HINTS).forEach((player) => {
+    PLAYER_DISPLAY_NAMES[player] ||= titleCaseName(player);
+  });
+  rebuildPartialPlayerHints();
 
   function buildRuleSets(rawText, selectedModes, customFilter = {}) {
     const parsed = parseRules(rawText);
@@ -51,12 +106,18 @@
       result[currentMode] ||= { lines: [] };
       result[currentMode].lines.push(trimmed);
 
+      if (parseRuleSection(trimmed)) return;
+
       const match = trimmed.match(/^([^:=]+)\s*[:=]\s*(.+)$/);
       if (!match) return;
 
       const key = normalizeKey(match[1]);
       const value = match[2].split(",").map((item) => item.trim()).filter(Boolean);
-      result[currentMode][key] = value.length === 1 ? value[0] : value;
+      if (result[currentMode][key] != null) {
+        result[currentMode][key] = [...toList(result[currentMode][key]), ...value];
+      } else {
+        result[currentMode][key] = value.length === 1 ? value[0] : value;
+      }
     });
 
     return result;
@@ -83,6 +144,10 @@
       excludeKeywords: toList(normalized.excludekeywords || normalized.exclude),
       minPrice: toNumber(normalized.minprice || normalized.minimumprice),
       maxPrice: toNumber(normalized.maxprice || normalized.maximumprice),
+      blockRules: [
+        ...normalizeBlockRules(normalized.blockrules || normalized.block || normalized.blocks),
+        ...parseInlineBlockRules(normalized.lines || [])
+      ],
       customRules: normalizeCustomRules(normalized.customrules || normalized.rules),
       rangeRules: [
         ...parseRangeRules(normalized.lines || []),
@@ -96,13 +161,60 @@
 
   function mergeCustomFilter(ruleSet, customFilter) {
     const merged = { ...(ruleSet || {}) };
+    const externalRules = normalizeExternalCustomRules(merged);
     if (Array.isArray(customFilter)) {
-      merged.customRules = customFilter.flatMap((filter) => Array.isArray(filter.rules) ? filter.rules : []);
+      merged.customRules = [
+        ...externalRules,
+        ...customFilter.flatMap((filter) => Array.isArray(filter.rules) ? filter.rules : [])
+      ];
     } else if (Array.isArray(customFilter.rules)) {
-      merged.customRules = customFilter.rules;
+      merged.customRules = [...externalRules, ...customFilter.rules];
+    } else if (externalRules.length) {
+      merged.customRules = externalRules;
     }
 
     return merged;
+  }
+
+  function normalizeExternalCustomRules(ruleSet) {
+    const normalized = Object.entries(ruleSet || {}).reduce((acc, [key, value]) => {
+      acc[normalizeKey(key)] = value;
+      return acc;
+    }, {});
+
+    const sportValues = toList(normalized.sports || normalized.sport);
+    const rangeRules = [
+      ...parseRangeRules(normalized.lines || []),
+      ...normalizeExplicitRangeRules(normalized.rangerules || normalized.ranges)
+    ];
+
+    const explicitRanges = [];
+    const minPrice = toNumber(normalized.minprice || normalized.minimumprice);
+    const maxPrice = toNumber(normalized.maxprice || normalized.maximumprice);
+    if (minPrice != null || maxPrice != null) {
+      explicitRanges.push({ min: minPrice ?? 0, max: maxPrice ?? Number.MAX_SAFE_INTEGER });
+    }
+
+    const ruleFromRange = (range, sport) => ({
+      sport: canonicalCategory(sport || range.category || range.matcher || ""),
+      priceRanges: range.kind === "amount" ? [{ min: range.min, max: range.max }] : [],
+      grades: gradesFromAllowedCompanies(range.allowedCompanies, range.cgcPokeOnly, sport || range.category || range.matcher || "")
+    });
+
+    if (rangeRules.length) {
+      const sports = sportValues.length ? sportValues : [""];
+      return rangeRules.flatMap((range) => sports.map((sport) => ruleFromRange(range, sport)));
+    }
+
+    if (sportValues.length || explicitRanges.length) {
+      return [{
+        sport: sportValues[0] || "",
+        priceRanges: explicitRanges,
+        grades: {}
+      }];
+    }
+
+    return [];
   }
 
   function valueMatchesRuleSet(value, ruleSet) {
@@ -111,6 +223,10 @@
     }
 
     const haystack = value.text.toLowerCase();
+    if (ruleSet.blockRules.some((rule) => blockRuleMatchesValue(rule, value))) {
+      return false;
+    }
+
     if (ruleSet.excludeKeywords.some((keyword) => haystack.includes(keyword.toLowerCase()))) {
       return false;
     }
@@ -156,9 +272,74 @@
       ruleSet.excludeKeywords.length ||
       ruleSet.minPrice != null ||
       ruleSet.maxPrice != null ||
+      ruleSet.blockRules.length ||
       ruleSet.customRules.length ||
       ruleSet.rangeRules.length
     );
+  }
+
+  function normalizeBlockRules(value) {
+    return toList(value).map((entry) => {
+      const raw = String(entry || "").trim();
+      const gradeRangeBlock = parseGradeRangeBlock(raw);
+      if (gradeRangeBlock) return gradeRangeBlock;
+
+      const normalizedRaw = raw
+        .replace(/\(.*?\)/g, " ")
+        .replace(/\bin all grades\b/gi, " ")
+        .replace(/\ball grades\b/gi, " ")
+        .replace(/\btemporary\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      const overMatch = raw.match(/(.+?)\s+(?:over|above|\$?\+)\s*\$?\s*(\d[\d,]*(?:\.\d+)?k?)\s*$/i);
+      if (overMatch) {
+        return {
+          raw,
+          matcher: cleanRuleText(overMatch[1]),
+          minPrice: parseRuleNumber(overMatch[2])
+        };
+      }
+      return { raw, matcher: cleanRuleText(normalizedRaw), minPrice: null };
+    }).filter((rule) => rule.matcher);
+  }
+
+  function blockRuleMatchesValue(rule, value) {
+    const haystack = cleanRuleText(value.text);
+    if (specialBlockMatches(rule.raw, value, haystack)) return true;
+    if (rule.gradeCompany) {
+      const company = cleanRuleText(value.gradeCompany || value.gradingCompany || "");
+      if (company !== rule.gradeCompany) return false;
+      if (rule.minPrice != null && (value.price == null || value.price < rule.minPrice)) return false;
+      if (rule.maxPrice != null && (value.price == null || value.price > rule.maxPrice)) return false;
+      return !rule.matcher || matcherMatchesText(rule.matcher, haystack);
+    }
+    if (!matcherMatchesText(rule.matcher, haystack)) return false;
+    return rule.minPrice == null || (value.price != null && value.price >= rule.minPrice);
+  }
+
+  function specialBlockMatches(raw, value, haystack) {
+    const rule = cleanRuleText(raw);
+
+    if (
+      /\bdowntowns?\b/i.test(rule) &&
+      /\b(don t|do not|dont|don['’]?t|never|avoid|don buy|do buy any right now)\b/i.test(rule) &&
+      /\boptic\b/i.test(rule) &&
+      /\bdonruss\b/i.test(rule)
+    ) {
+      return (
+        (!rule.match(/\b(19|20)\d{2}\b/) || rule.includes(String(value.year || ""))) &&
+        /\b(downtown|downtowns)\b/i.test(haystack) &&
+        /\b(optic|donruss)\b/i.test(haystack) &&
+        (/\b(football|basketball|nfl|nba)\b/i.test(haystack) || ["football", "basketball"].includes(value.sport))
+      );
+    }
+
+    if (/\b1990s?\b.*\bmichael jordan\b|\bmichael jordan\b.*\b1990s?\b/i.test(rule)) {
+      const year = Number(value.year);
+      return year >= 1990 && year <= 1999 && /\bmichael jordan\b/i.test(haystack);
+    }
+
+    return false;
   }
 
   function normalizeCustomRules(rules) {
@@ -189,11 +370,12 @@
   }
 
   function normalizeGrades(grades) {
-    return ["psa", "bgs", "sgc"].reduce((acc, company) => {
+    const hasDisallowedCompany = GRADE_COMPANIES.some((company) => grades?.[company]?.allowed === false);
+    return GRADE_COMPANIES.reduce((acc, company) => {
       const min = toNumber(grades?.[company]?.min);
       const max = toNumber(grades?.[company]?.max);
       const allowed = grades?.[company]?.allowed !== false;
-      if (!allowed || min != null || max != null) {
+      if (hasDisallowedCompany || !allowed || min != null || max != null) {
         acc[company] = {
           allowed,
           min: min ?? 1,
@@ -207,7 +389,7 @@
 
   function customRuleMatchesValue(rule, value) {
     const haystack = cleanRuleText(value.text);
-    if (rule.sport && !matcherMatchesText(rule.sport, haystack)) {
+    if (rule.sport && !sportMatchesValue(rule.sport, value, haystack)) {
       return false;
     }
 
@@ -219,7 +401,10 @@
 
     const gradeCompanies = Object.keys(rule.grades);
     if (gradeCompanies.length) {
-      const gradeRule = value.gradeCompany ? rule.grades[value.gradeCompany.toLowerCase()] : null;
+      const allowedCompanies = gradeCompanies.filter((company) => rule.grades[company].allowed !== false);
+      const company = value.gradeCompany ? value.gradeCompany.toLowerCase() : "";
+      const gradeRule = company ? rule.grades[company] : null;
+      if (allowedCompanies.length && (!company || !allowedCompanies.includes(company))) return false;
       if (gradeRule?.allowed === false) return false;
 
       const hasAnyGradeRange = gradeCompanies.some((company) => rule.grades[company].hasRange);
@@ -238,8 +423,27 @@
   }
 
   function parseRangeRules(lines) {
-    return lines
-      .map((line) => parseRangeRule(line))
+    const rules = [];
+    let section = null;
+
+    (lines || []).forEach((line) => {
+      const nextSection = parseRuleSection(line);
+      if (nextSection) {
+        section = nextSection;
+        return;
+      }
+
+      const rule = parseRangeRule(line, section);
+      if (rule) rules.push(rule);
+    });
+
+    return rules;
+  }
+
+  function parseInlineBlockRules(lines) {
+    return (lines || [])
+      .filter((line) => /\b(no|not|never|avoid|don['’]?t|dont|do not)\b/i.test(line))
+      .map((line) => parseGradeRangeBlock(line))
       .filter(Boolean);
   }
 
@@ -261,20 +465,34 @@
       .filter(Boolean);
   }
 
-  function parseRangeRule(line) {
+  function parseRangeRule(line, section = null) {
     const raw = String(line || "").trim();
     if (!raw || /^#|\/\//.test(raw) || /\bRANGE\b/i.test(raw)) return null;
 
-    const rangeMatch = raw.match(/\$?\s*(\d[\d,]*(?:\.\d+)?k?)\s*(?:-|to|through|thru)\s*\$?\s*(\d[\d,]*(?:\.\d+)?k?)\s*(%|percent)?/i);
+    const rangeMatch = raw.match(/\$?\s*(\d[\d,]*(?:\.\d+)?k?)\s*(?:-|–|—|to|through|thru)\s*\$?\s*(\d[\d,]*(?:\.\d+)?k?)\s*(%|percent)?/i);
     if (!rangeMatch) return null;
 
-    const matcher = cleanRuleText(`${raw.slice(0, rangeMatch.index)} ${raw.slice(rangeMatch.index + rangeMatch[0].length)}`);
+    const leadingMatcher = cleanRuleText(raw.slice(0, rangeMatch.index));
     return {
       raw,
-      matcher,
-      min: parseRuleNumber(rangeMatch[1]),
-      max: parseRuleNumber(rangeMatch[2]),
-      kind: rangeMatch[3] ? "percent" : "amount"
+      matcher: leadingMatcher,
+      category: section ? leadingMatcher : "",
+      ...parseRuleRangeNumbers(rangeMatch[1], rangeMatch[2]),
+      kind: rangeMatch[3] ? "percent" : "amount",
+      allowedCompanies: section?.allowedCompanies || [],
+      cgcPokeOnly: Boolean(section?.cgcPokeOnly)
+    };
+  }
+
+  function parseRuleSection(line) {
+    const match = String(line || "").match(/^\s*([A-Za-z0-9 _-]+)\s*:\s*(.+)$/);
+    if (!match) return null;
+    const companies = [...match[2].matchAll(/\b(PSA|BGS|SGC|CGC)\b/gi)].map((item) => item[1].toLowerCase());
+    if (!companies.length) return null;
+    return {
+      name: match[1].trim(),
+      allowedCompanies: [...new Set(companies)],
+      cgcPokeOnly: /cgc\W*.*poke only|poke only.*cgc/i.test(match[2])
     };
   }
 
@@ -295,6 +513,15 @@
       if (!matcherMatchesText(rule.matcher, haystack)) return false;
     }
 
+    if (rule.allowedCompanies?.length) {
+      const grades = gradesFromAllowedCompanies(rule.allowedCompanies, rule.cgcPokeOnly, rule.category || rule.matcher);
+      const gradeCompanies = Object.keys(grades);
+      const allowedCompanies = gradeCompanies.filter((company) => grades[company].allowed !== false);
+      const company = cleanRuleText(value.gradeCompany || value.gradingCompany || "");
+      if (allowedCompanies.length && (!company || !allowedCompanies.includes(company))) return false;
+      if (company && grades[company]?.allowed === false) return false;
+    }
+
     if (rule.kind === "amount" && value.price != null) {
       return value.price >= rule.min && value.price <= rule.max;
     }
@@ -306,7 +533,7 @@
     const rawText = String(text || "");
     const priceMatch = rawText.match(/\$\s*(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d{2})?\b/);
     const numericCellMatch = rawText.trim().match(/^(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d{1,2})?$/);
-    const gradeMatch = rawText.match(/\b(PSA|BGS|SGC)\b\D{0,24}\b(10|9\.5|9|8\.5|8|7|6|5|4|3|2|1)\b/i);
+    const gradeMatch = rawText.match(/\b(PSA|BGS|SGC|CGC)\b\D{0,24}\b(10|9\.5|9|8\.5|8|7|6|5|4|3|2|1)\b/i);
     return {
       text: rawText,
       price: priceMatch
@@ -317,6 +544,314 @@
       gradeCompany: gradeMatch ? gradeMatch[1].toUpperCase() : null,
       grade: gradeMatch ? Number(gradeMatch[2]) : null
     };
+  }
+
+  function parseCardRow(descriptionText, rowText = descriptionText) {
+    const description = String(descriptionText || "").trim();
+    const combined = [description, rowText].filter(Boolean).join(" ");
+    const parsed = parseCellValue(combined);
+    const descriptionParsed = parseCardDescription(description || combined);
+    const combinedParsed = description && description !== combined ? parseCardDescription(combined) : descriptionParsed;
+    const sportCorrelations = findKnownPlayerSports(combined);
+    const primaryCorrelation = sportCorrelations[0] || {};
+    const playerName = descriptionParsed.playerName || combinedParsed.playerName || primaryCorrelation.playerName || null;
+    const sport = descriptionParsed.sport || combinedParsed.sport || primaryCorrelation.sport || null;
+    return {
+      ...descriptionParsed,
+      ...parsed,
+      text: combined,
+      description,
+      sport,
+      sportCorrelations,
+      playerName,
+      year: descriptionParsed.year,
+      productName: descriptionParsed.productName,
+      numbering: descriptionParsed.numbering,
+      gradingCompany: parsed.gradeCompany || descriptionParsed.gradingCompany,
+      gradeCompany: parsed.gradeCompany || descriptionParsed.gradeCompany,
+      grade: parsed.grade ?? descriptionParsed.grade
+    };
+  }
+
+  function duplicateKeyForCard(value) {
+    const player = normalizeDuplicatePart(value.playerName || "");
+    const year = normalizeDuplicatePart(value.year || "");
+    const product = normalizeDuplicatePart(value.productName || "");
+    const numbering = normalizeDuplicatePart(value.numbering || "");
+    const gradeCompany = normalizeDuplicatePart(value.gradeCompany || value.gradingCompany || "");
+    const grade = value.grade != null ? String(value.grade) : "";
+    const description = normalizeDuplicatePart(value.description || value.text || "");
+
+    if (player && year && (product || numbering)) {
+      return [player, year, product, numbering, gradeCompany, grade].join("|");
+    }
+
+    return description.length >= 12 ? description : "";
+  }
+
+  function parseCardDescription(text) {
+    const raw = String(text || "").replace(/\s+/g, " ").trim();
+    const year = raw.match(/\b(19|20)\d{2}\b/)?.[0] || null;
+    const numbering = raw.match(/(?:#\s?[A-Z0-9-]+|\b\d+\/\d+\b|\/\d+\b)/i)?.[0]?.replace(/\s+/g, "") || null;
+    const gradeInfo = parseCellValue(raw);
+    const playerName = inferPlayerName(raw);
+    const productName = inferProductName(raw, playerName, year);
+    const sport = inferSport(raw, playerName);
+    const sportCorrelations = findKnownPlayerSports(raw);
+
+    return {
+      playerName,
+      year,
+      productName,
+      numbering,
+      sport,
+      sportCorrelations,
+      gradeCompany: gradeInfo.gradeCompany,
+      gradingCompany: gradeInfo.gradeCompany,
+      grade: gradeInfo.grade
+    };
+  }
+
+  function inferPlayerName(raw) {
+    const knownPlayer = knownPlayerInText(raw);
+    if (knownPlayer) return PLAYER_DISPLAY_NAMES[knownPlayer] || titleCaseName(knownPlayer);
+
+    const cleaned = raw
+      .replace(/\b(PSA|BGS|SGC|CGC)\b.*$/i, " ")
+      .replace(/#\s?[A-Z0-9-]+/gi, " ")
+      .replace(/\b\d+\/\d+\b/g, " ")
+      .replace(/\b(19|20)\d{2}\b/g, " ")
+      .replace(/[()|,]/g, " ");
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    const candidates = [];
+
+    for (let i = 0; i < words.length; i += 1) {
+      const pair = [words[i], words[i + 1]].filter(Boolean);
+      const triple = [words[i], words[i + 1], words[i + 2]].filter(Boolean);
+      [triple, pair].forEach((candidate) => {
+        if (candidate.length < 2) return;
+        const normalized = candidate.join(" ").toLowerCase();
+        if (candidate.every(isNameLikeWord) && !candidate.some((word) => PRODUCT_WORDS.has(word.toLowerCase()))) {
+          candidates.push(candidate.join(" "));
+        }
+        if (PLAYER_SPORT_HINTS[normalized]) {
+          candidates.unshift(candidate.join(" "));
+        }
+      });
+    }
+
+    return candidates[0] || null;
+  }
+
+  function inferProductName(raw, playerName, year) {
+    let value = String(raw || "");
+    if (year) value = value.replace(year, "");
+    if (playerName) value = value.replace(new RegExp(escapeRegExp(playerName), "i"), "");
+    value = value
+      .replace(/\b(PSA|BGS|SGC|CGC)\b.*$/i, "")
+      .replace(/#\s?[A-Z0-9-]+/gi, "")
+      .replace(/\b\d+\/\d+\b/g, "")
+      .replace(/\b(auto|autograph|rookie|rc|refractor|parallel|silver|gold|red|blue|green)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return value || null;
+  }
+
+  function inferSport(raw, playerName) {
+    const haystack = cleanRuleText(raw);
+    for (const [sport, aliases] of Object.entries(CATEGORY_ALIASES)) {
+      if (aliases.some((alias) => haystack.includes(cleanRuleText(alias)))) return sport;
+    }
+    const playerKey = cleanRuleText(playerName || "");
+    return PLAYER_SPORT_HINTS[playerKey] || null;
+  }
+
+  function knownPlayerInText(raw) {
+    return findKnownPlayerSports(raw)[0]?.key || null;
+  }
+
+  function findKnownPlayerSports(raw) {
+    const haystack = ` ${cleanRuleText(raw)} `;
+    const seen = new Set();
+    const exactMatches = Object.keys(PLAYER_SPORT_HINTS)
+      .sort((a, b) => b.length - a.length)
+      .filter((player) => haystack.includes(` ${cleanRuleText(player)} `))
+      .map((player) => ({
+        key: player,
+        playerName: PLAYER_DISPLAY_NAMES[player] || titleCaseName(player),
+        sport: PLAYER_SPORT_HINTS[player]
+      }))
+      .filter((correlation) => {
+        const key = `${correlation.key}:${correlation.sport}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    if (exactMatches.length) return exactMatches;
+
+    return Object.keys(PARTIAL_PLAYER_HINTS)
+      .sort((a, b) => b.length - a.length)
+      .filter((token) => haystack.includes(` ${token} `))
+      .map((token) => PARTIAL_PLAYER_HINTS[token])
+      .filter((hint) => {
+        const key = `${hint.key}:${hint.sport}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  function sportMatchesValue(expectedSport, value, haystack) {
+    const expected = cleanRuleText(expectedSport);
+    const parsedSport = cleanRuleText(value.sport || "");
+    const parsedPlayer = cleanRuleText(value.playerName || "");
+    if (parsedPlayer && parsedPlayer === expected) {
+      return true;
+    }
+    if ((value.sportCorrelations || []).some((correlation) =>
+      cleanRuleText(correlation.playerName || "") === expected || cleanRuleText(correlation.key || "") === expected
+    )) {
+      return true;
+    }
+    if (parsedSport && (parsedSport === expected || aliasesFor(expected).some((alias) => cleanRuleText(alias) === parsedSport))) {
+      return true;
+    }
+    if ((value.sportCorrelations || []).some((correlation) => {
+      const sport = cleanRuleText(correlation.sport || "");
+      return sport === expected || aliasesFor(expected).some((alias) => cleanRuleText(alias) === sport);
+    })) {
+      return true;
+    }
+    return matcherMatchesText(expectedSport, haystack);
+  }
+
+  function isNameLikeWord(word) {
+    return /^[a-zA-Z][a-zA-Z'.-]+$/.test(word) && !PRODUCT_WORDS.has(word.toLowerCase());
+  }
+
+  function canonicalCategory(value) {
+    const key = cleanRuleText(value);
+    if (!key) return "";
+    const match = Object.entries(CATEGORY_ALIASES).find(([category, aliases]) =>
+      cleanRuleText(category) === key || aliases.some((alias) => cleanRuleText(alias) === key)
+    );
+    return match?.[0] === "b-ball" || match?.[0] === "bball" || match?.[0] === "nba" ? "basketball" : match?.[0] || key;
+  }
+
+  function gradesFromAllowedCompanies(allowedCompanies, cgcPokeOnly, category) {
+    if (!Array.isArray(allowedCompanies) || !allowedCompanies.length) return {};
+    const categoryKey = canonicalCategory(category);
+    return GRADE_COMPANIES.reduce((acc, company) => {
+      const cgcBlockedByCategory = company === "cgc" && cgcPokeOnly && !["pokemon", "poke"].includes(categoryKey);
+      acc[company] = {
+        allowed: allowedCompanies.includes(company) && !cgcBlockedByCategory,
+        min: 1,
+        max: 10,
+        hasRange: false
+      };
+      return acc;
+    }, {});
+  }
+
+  function titleCaseName(value) {
+    return String(value || "")
+      .split(/\s+/)
+      .map((word) => word ? `${word[0].toUpperCase()}${word.slice(1)}` : "")
+      .join(" ");
+  }
+
+  function rebuildPartialPlayerHints() {
+    const tokenMap = {};
+    Object.keys(PLAYER_SPORT_HINTS).forEach((player) => {
+      const parts = cleanRuleText(player).split(/\s+/).filter(Boolean);
+      const tokens = [
+        parts[parts.length - 1],
+        ...parts.filter((part) => isDistinctiveFirstName(part))
+      ].filter((token) => token && token.length >= 4 && !isAmbiguousPartialToken(token));
+
+      tokens.forEach((token) => {
+        tokenMap[token] ||= [];
+        tokenMap[token].push({
+          key: player,
+          playerName: PLAYER_DISPLAY_NAMES[player] || titleCaseName(player),
+          sport: PLAYER_SPORT_HINTS[player]
+        });
+      });
+    });
+
+    Object.entries(tokenMap).forEach(([token, hints]) => {
+      const sports = new Set(hints.map((hint) => hint.sport));
+      if (sports.size === 1) {
+        PARTIAL_PLAYER_HINTS[token] = hints.sort((a, b) => a.playerName.length - b.playerName.length)[0];
+      }
+    });
+  }
+
+  function isDistinctiveFirstName(token) {
+    return new Set([
+      "lebron",
+      "kareem",
+      "magic",
+      "kobe",
+      "shaquille",
+      "hakeem",
+      "giannis",
+      "nikola",
+      "dwyane",
+      "kawhi",
+      "dirk",
+      "dolph",
+      "manu",
+      "shai",
+      "peyton",
+      "emmitt",
+      "ladainian",
+      "deion",
+      "shoeless",
+      "ichiro",
+      "satchel",
+      "jimmie",
+      "yogi",
+      "honus",
+      "pedro"
+    ]).has(token);
+  }
+
+  function isAmbiguousPartialToken(token) {
+    return new Set([
+      "john",
+      "joe",
+      "bob",
+      "jim",
+      "mike",
+      "steve",
+      "david",
+      "chris",
+      "paul",
+      "james",
+      "thomas",
+      "johnson",
+      "brown",
+      "white",
+      "green",
+      "young",
+      "rose",
+      "king",
+      "hill",
+      "bell",
+      "reed",
+      "allen",
+      "george",
+      "parker",
+      "wilson",
+      "martinez",
+      "robinson",
+      "jackson"
+    ]).has(token);
+  }
+
+  function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   function modeFromHeading(value) {
@@ -333,6 +868,8 @@
   function cleanRuleText(value) {
     return String(value || "")
       .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
       .replace(/\b(fill|bid|range|buy|pay|up to|acceptable|target|min|max|price)\b/g, " ")
       .replace(/[:|,;()[\]{}]+/g, " ")
       .replace(/\s+/g, " ")
@@ -363,6 +900,44 @@
     return Number.isFinite(parsed) ? parsed * multiplier : 0;
   }
 
+  function parseRuleRangeNumbers(minValue, maxValue) {
+    const minRaw = String(minValue || "").trim().toLowerCase();
+    const maxRaw = String(maxValue || "").trim().toLowerCase();
+    const rangeHasK = /k\s*$/.test(minRaw) || /k\s*$/.test(maxRaw);
+    const min = parseRuleNumber(minRaw);
+    const max = parseRuleNumber(maxRaw);
+
+    return {
+      min: rangeHasK && shouldInheritKScale(minRaw, min) ? min * 1000 : min,
+      max: rangeHasK && shouldInheritKScale(maxRaw, max) ? max * 1000 : max
+    };
+  }
+
+  function shouldInheritKScale(raw, parsed) {
+    return !/k\s*$/.test(raw) && parsed > 0 && parsed < 10;
+  }
+
+  function parseGradeRangeBlock(raw) {
+    const text = String(raw || "").trim();
+    const companyMatch = text.match(/\b(PSA|BGS|SGC|CGC)\b/i);
+    const rangeMatch = text.match(/\$?\s*(\d[\d,]*(?:\.\d+)?k?)\s*(?:-|â€“|â€”|to|through|thru)\s*\$?\s*(\d[\d,]*(?:\.\d+)?k?)\b/i);
+    if (!companyMatch || !rangeMatch) return null;
+
+    const leading = cleanRuleText(`${text.slice(0, rangeMatch.index)} ${text.slice(rangeMatch.index + rangeMatch[0].length)}`)
+      .replace(/\b(no|not|never|avoid|dont|don t|do not)\b/g, " ")
+      .replace(new RegExp(`\\b${companyMatch[1]}\\b`, "i"), " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const range = parseRuleRangeNumbers(rangeMatch[1], rangeMatch[2]);
+    return {
+      raw: text,
+      matcher: leading,
+      gradeCompany: companyMatch[1].toLowerCase(),
+      minPrice: range.min,
+      maxPrice: range.max
+    };
+  }
+
   function toList(value) {
     if (value == null) return [];
     if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
@@ -375,10 +950,24 @@
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  function normalizeDuplicatePart(value) {
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9/.-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   window.AutoSheetReviewRules = {
     buildRuleSets,
     parseRules,
     parseCellValue,
+    parseCardDescription,
+    parseCardRow,
+    duplicateKeyForCard,
+    findKnownPlayerSports,
     valueMatchesRuleSet
   };
 })();

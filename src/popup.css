@@ -312,6 +312,28 @@ footer {
   line-height: 1.35;
 }
 
+.rules-preview {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0d1117;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.active-rules-preview {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0d1117;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 footer {
   grid-template-columns: 88px 1fr;
   margin-top: 14px;

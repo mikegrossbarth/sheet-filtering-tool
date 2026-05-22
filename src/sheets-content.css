@@ -1,6 +1,6 @@
-.auto-sheet-review-bad-cell {
-  background-color: rgba(239, 68, 68, 0.34) !important;
-  box-shadow: inset 0 0 0 2px rgba(185, 28, 28, 0.95) !important;
+.auto-sheet-review-good-cell {
+  background-color: rgba(34, 197, 94, 0.26) !important;
+  box-shadow: inset 0 0 0 2px rgba(22, 163, 74, 0.95) !important;
 }
 
 #auto-sheet-review-panel {
@@ -69,8 +69,18 @@
 .auto-sheet-review-overlay-cell {
   position: fixed;
   box-sizing: border-box;
-  background: rgba(239, 68, 68, 0.26);
-  border: 2px solid rgba(185, 28, 28, 0.95);
+}
+
+.auto-sheet-review-overlay-good {
+  background: rgba(34, 197, 94, 0.38);
+  border: 2px solid rgba(22, 163, 74, 0.98);
+  box-shadow: inset 0 0 0 1px rgba(187, 247, 208, 0.65);
+}
+
+.auto-sheet-review-overlay-row {
+  border-left: 0;
+  border-right: 0;
+  mix-blend-mode: multiply;
 }
 
 #auto-sheet-review-toast {
