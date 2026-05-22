@@ -36,8 +36,7 @@ const openKeepButton = document.querySelector("#openKeep");
 const keepRulesControls = document.querySelector("#keepRulesControls");
 const sheetRulesControls = document.querySelector("#sheetRulesControls");
 const rulesSyncStatusEl = document.querySelector("#rulesSyncStatus");
-const rulesPreviewEl = document.querySelector("#rulesPreview");
-const activeRulesPreviewEl = document.querySelector("#activeRulesPreview");
+const rulesCountStatusEl = document.querySelector("#rulesCountStatus");
 const editFilterModal = document.querySelector("#editFilterModal");
 const editFilterSelect = document.querySelector("#editFilterSelect");
 const cancelEditFilterButton = document.querySelector("#cancelEditFilter");
@@ -504,13 +503,16 @@ async function loadRulesPayload() {
   }
 
   if (activeSource === "sheet") {
+    rulesSyncStatusEl.textContent = "Refreshing Google Sheets rules...";
+    setRuleCountStatus("");
     const workbook = await fetchGoogleSheetRulesWorkbook(activeSheetUrl);
     renderSheetWorkbookStatus(workbook);
     return { source: "sheet", text: workbook.text, customFilters, workbook };
   }
 
-  const stored = await chrome.storage.local.get(["sheetReviewRulesNote"]);
-  const note = stored.sheetReviewRulesNote || {};
+  rulesSyncStatusEl.textContent = "Refreshing Google Keep rules...";
+  setRuleCountStatus("");
+  const note = await refreshGoogleKeepRulesNote();
   if (!note.text?.trim()) {
     if (!hasSavedFilterRules) {
       throw new Error("Google Keep rules are not synced. Open the Keep rule note, then run Review Sheet again.");
@@ -521,17 +523,33 @@ async function loadRulesPayload() {
   return { source: "keep", text: note.text, customFilters };
 }
 
+async function refreshGoogleKeepRulesNote() {
+  const response = await chrome.runtime.sendMessage({ action: "refreshKeepRulesNote" });
+  if (!response?.success) {
+    throw new Error(response?.error || "Could not refresh Google Keep rules.");
+  }
+  const note = response.note || {};
+  const syncedAt = note.synced_at ? new Date(note.synced_at) : null;
+  const when = syncedAt && !Number.isNaN(syncedAt.getTime())
+    ? syncedAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : "just now";
+  const title = displayRuleNoteTitle(note);
+  rulesSyncStatusEl.textContent = `Keep rules refreshed from "${title}" ${when}.`;
+  renderParsedRuleCount(note.text || "");
+  return note;
+}
+
 async function refreshRulesSyncStatus() {
   if (sourceEl.value === "none") {
     rulesSyncStatusEl.textContent = "No synced rules file selected.";
-    renderRulesPreview("");
+    setRuleCountStatus("");
     return;
   }
 
   if (sourceEl.value === "sheet") {
     if (!sheetRulesUrlEl.value.trim()) {
       rulesSyncStatusEl.textContent = "Add a Google Sheets rules file URL.";
-      renderRulesPreview("");
+      setRuleCountStatus("");
       return;
     }
     const stored = await chrome.storage.local.get(["sheetReviewRulesWorkbook"]);
@@ -544,7 +562,7 @@ async function refreshRulesSyncStatus() {
   const note = stored.sheetReviewRulesNote || {};
   if (!note.text) {
     rulesSyncStatusEl.textContent = "Keep rules not synced yet.";
-    renderRulesPreview("");
+    setRuleCountStatus("");
     return;
   }
 
@@ -552,65 +570,23 @@ async function refreshRulesSyncStatus() {
   const when = syncedAt && !Number.isNaN(syncedAt.getTime())
     ? syncedAt.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : "recently";
-  const title = note.title || firstMeaningfulLine(note.text) || "Untitled Keep note";
+  const title = displayRuleNoteTitle(note);
   rulesSyncStatusEl.textContent = `Keep rules synced from "${title}" ${when}.`;
-  renderRulesPreview(note.text);
-}
-
-function renderRulesPreview(text, tabSummaries = []) {
-  const tabSummaryLines = tabSummaries
-    .filter((tab) => tab.rules)
-    .map((tab) => `${tab.title}: ${tab.rules} rules`);
-  const summary = [...tabSummaryLines, ...summarizeParsedRules(text)];
-  renderPreviewTarget(rulesPreviewEl, summary);
-  renderPreviewTarget(activeRulesPreviewEl, summary);
-}
-
-function renderPreviewTarget(target, summary) {
-  if (!target) return;
-  if (!summary.length) {
-    target.hidden = true;
-    target.textContent = "";
-    return;
-  }
-  target.hidden = false;
-  target.innerHTML = summary.map((line) => `<div>${escapeHtml(line)}</div>`).join("");
-}
-
-function summarizeParsedRules(text) {
-  const ruleSets = window.AutoSheetReviewRules?.buildRuleSets?.(text, ["custom"], []) || [];
-  const custom = ruleSets[0];
-  if (!custom?.configured) return [];
-
-  const lines = [];
-  if (custom.sports?.length) lines.push(`Sports: ${custom.sports.join(", ")}`);
-  if (custom.minPrice != null || custom.maxPrice != null) {
-    lines.push(`Price: ${custom.minPrice ?? 0}-${custom.maxPrice ?? "any"}`);
-  }
-  custom.rangeRules?.forEach((rule) => {
-    lines.push(`Range: ${rule.matcher || "all"} ${rule.min}-${rule.max}`);
-  });
-  custom.customRules?.forEach((rule, index) => {
-    const parts = [];
-    if (rule.sport) parts.push(rule.sport);
-    if (rule.priceRanges?.length) {
-      parts.push(rule.priceRanges.map((range) => `${range.min}-${range.max === Number.MAX_SAFE_INTEGER ? "any" : range.max}`).join(", "));
-    }
-    const allowed = Object.entries(rule.grades || {})
-      .filter(([, grade]) => grade.allowed !== false)
-      .map(([company, grade]) => `${company.toUpperCase()} ${grade.hasRange ? `${grade.min}-${grade.max}` : "any"}`);
-    const blocked = Object.entries(rule.grades || {})
-      .filter(([, grade]) => grade.allowed === false)
-      .map(([company]) => company.toUpperCase());
-    if (allowed.length) parts.push(`Allowed: ${allowed.join(", ")}`);
-    if (blocked.length) parts.push(`Blocked: ${blocked.join(", ")}`);
-    lines.push(`Rule ${index + 1}: ${parts.join(" | ") || "all"}`);
-  });
-  return lines.slice(0, 6);
+  renderParsedRuleCount(note.text || "");
 }
 
 function firstMeaningfulLine(text) {
-  return String(text || "").split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+  return String(text || "").split(/\r?\n/).map((line) => line.trim()).find(isMeaningfulKeepLine);
+}
+
+function displayRuleNoteTitle(note) {
+  return isMeaningfulKeepLine(note?.title)
+    ? note.title
+    : firstMeaningfulLine(note?.text) || "Untitled Keep note";
+}
+
+function isMeaningfulKeepLine(line) {
+  return Boolean(line) && !/^(take a note|title|note|open the rules note|sync rules)$/i.test(String(line).replace(/[.…]+$/g, "").trim());
 }
 
 async function fetchGoogleSheetRulesWorkbook(url) {
@@ -640,7 +616,6 @@ async function refreshSheetWorkbookPreview() {
     renderSheetWorkbookStatus(workbook);
   } catch (error) {
     rulesSyncStatusEl.textContent = error?.message || "Could not load Google Sheets rules.";
-    renderRulesPreview("");
   }
 }
 
@@ -648,13 +623,13 @@ function renderSheetWorkbookStatus(workbook) {
   rulesSyncStatusEl.textContent = workbook?.title
     ? `Google Sheets rules loaded from "${workbook.title}".`
     : "Google Sheets rules file URL set. Rules load on review.";
-  renderRulesPreview(workbook?.text || "", workbook?.tabSummaries || []);
+  renderParsedRuleCount(workbook?.text || "", workbook?.tabSummaries || []);
 }
 
 async function refreshSelectedFilterPreview() {
   const selected = selectedSavedFilter();
   if (!selected) {
-    renderRulesPreview("");
+    await refreshRulesSyncStatus();
     return;
   }
 
@@ -664,18 +639,49 @@ async function refreshSelectedFilterPreview() {
       renderSheetWorkbookStatus(workbook);
     } catch (error) {
       rulesSyncStatusEl.textContent = error?.message || "Could not load selected Google Sheet rules.";
-      renderRulesPreview("");
+      setRuleCountStatus("");
     }
     return;
   }
 
   if (selected.rulesSource === "keep") {
     const stored = await chrome.storage.local.get(["sheetReviewRulesNote"]);
-    renderRulesPreview(stored.sheetReviewRulesNote?.text || "");
+    const note = stored.sheetReviewRulesNote || {};
+    rulesSyncStatusEl.textContent = note.text
+      ? `Keep rules synced from "${displayRuleNoteTitle(note)}".`
+      : "Keep rules not synced yet.";
+    renderParsedRuleCount(note.text || "");
     return;
   }
 
-  renderRulesPreview("");
+  rulesSyncStatusEl.textContent = "No synced rules file selected.";
+  setRuleCountStatus("");
+}
+
+function renderParsedRuleCount(text, tabSummaries = []) {
+  const tabCount = tabSummaries.reduce((sum, tab) => sum + (Number(tab.rules) || 0), 0);
+  const count = tabCount || countParsedRules(text);
+  setRuleCountStatus(`${count} ${count === 1 ? "rule" : "rules"} found.`);
+}
+
+function setRuleCountStatus(message) {
+  if (!rulesCountStatusEl) return;
+  rulesCountStatusEl.hidden = !message;
+  rulesCountStatusEl.textContent = message || "";
+}
+
+function countParsedRules(text) {
+  const ruleSets = window.AutoSheetReviewRules?.buildRuleSets?.(text, ["custom"], []) || [];
+  return ruleSets.reduce((sum, ruleSet) => (
+    sum +
+    (ruleSet.blockRules?.length || 0) +
+    (ruleSet.customRules?.length || 0) +
+    (ruleSet.rangeRules?.length || 0) +
+    (ruleSet.sports?.length ? 1 : 0) +
+    (ruleSet.includeKeywords?.length || 0) +
+    (ruleSet.excludeKeywords?.length || 0) +
+    (ruleSet.minPrice != null || ruleSet.maxPrice != null ? 1 : 0)
+  ), 0);
 }
 
 function selectedSavedFilter() {

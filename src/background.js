@@ -33,6 +33,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "refreshKeepRulesNote") {
+    refreshKeepRulesNote()
+      .then((result) => sendResponse({ success: true, ...result }))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
   if (message.action === "fetchSheetCsv") {
     fetchFirstSheetCsv(message.urls || [message.url])
       .then((text) => sendResponse({ success: true, text }))
@@ -89,6 +96,51 @@ async function openSheetReviewRulesNote() {
 
   const tab = await chrome.tabs.create({ url: noteUrl, active: true });
   return { status: "opened_new", url: tab.url || noteUrl };
+}
+
+async function refreshKeepRulesNote() {
+  const stored = await chrome.storage.local.get(["sheetReviewRulesNote"]);
+  const storedNote = stored.sheetReviewRulesNote || {};
+  const storedUrl = String(storedNote.url || "").trim();
+  const tabs = await chrome.tabs.query({ url: "https://keep.google.com/*" });
+  const preferredTab = tabs.find((tab) => storedUrl && String(tab.url || "").startsWith(storedUrl)) || tabs[0];
+
+  if (!preferredTab?.id) {
+    throw new Error("Open the linked Google Keep rule note once so the extension can refresh it before review.");
+  }
+
+  const response = await chrome.tabs.sendMessage(preferredTab.id, {
+    type: "AUTO_SHEET_REVIEW_READ_KEEP_NOTE"
+  }).catch((error) => ({ error: error?.message || "Could not read the open Keep note." }));
+
+  const text = String(response?.text || "").trim();
+  if (!text) {
+    throw new Error("Could not read rules from the open Google Keep note. Open the rule note itself, then review again.");
+  }
+
+  const note = {
+    text,
+    title: String(response?.title || extractKeepTitle(text)),
+    url: String(preferredTab.url || storedUrl || "https://keep.google.com/"),
+    synced_at: new Date().toISOString()
+  };
+  await chrome.storage.local.set({ sheetReviewRulesNote: note });
+
+  return {
+    note,
+    refreshed: true
+  };
+}
+
+function extractKeepTitle(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(isRealKeepTitle) || "Untitled Keep note";
+}
+
+function isRealKeepTitle(line) {
+  return Boolean(line) && !/^(take a note|title|note|open the rules note|sync rules)$/i.test(line.replace(/[.…]+$/g, ""));
 }
 
 async function fetchFirstSheetCsv(urls) {

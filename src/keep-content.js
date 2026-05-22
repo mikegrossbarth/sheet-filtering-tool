@@ -4,7 +4,13 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type !== "AUTO_SHEET_REVIEW_READ_KEEP_NOTE") return;
-    sendResponse({ text: extractKeepText() });
+    const text = extractKeepText({ allowFallback: true });
+    sendResponse({
+      text,
+      title: extractKeepTitle(text),
+      url: window.location.href,
+      synced_at: new Date().toISOString()
+    });
   });
 
   ensureSyncPanel();
@@ -128,8 +134,19 @@
     const title = (titleCandidate?.innerText || titleCandidate?.textContent || "")
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .find(Boolean);
-    return title || String(text || "").split(/\r?\n/).map((line) => line.trim()).find(Boolean) || "Untitled Keep note";
+      .find(isRealKeepTitle);
+    return title || firstRealKeepLine(text) || "Untitled Keep note";
+  }
+
+  function firstRealKeepLine(text) {
+    return String(text || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(isRealKeepTitle);
+  }
+
+  function isRealKeepTitle(line) {
+    return Boolean(line) && !/^(take a note|title|note|open the rules note|sync rules)$/i.test(line.replace(/[.…]+$/g, ""));
   }
 
   syncRulesNote();

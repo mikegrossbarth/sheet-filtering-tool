@@ -24,7 +24,6 @@
           <button id="editFilter" type="button" class="secondary">Edit Filter</button>
         </div>
       </section>
-      <section id="activeRulesPreview" class="active-rules-preview" hidden></section>
 
       <section id="customOptions" class="custom-options" hidden>
         <div class="builder-header">
@@ -41,8 +40,6 @@
             <option value="keep">Google Keep rules file</option>
             <option value="sheet">Google Sheets rules file</option>
           </select>
-          <div id="rulesSyncStatus" class="keep-status">No synced rules file selected.</div>
-          <div id="rulesPreview" class="rules-preview" hidden></div>
           <div id="keepRulesControls" class="source-controls">
             <button id="openKeep" type="button" class="secondary wide">Open Keep Rule Note</button>
           </div>
@@ -51,6 +48,8 @@
             <label for="sheetRulesUrl">Google Sheets rules file URL</label>
             <input id="sheetRulesUrl" type="url" placeholder="Paste published/exportable Google Sheet URL">
           </div>
+          <div id="rulesSyncStatus" class="keep-status">No synced rules file selected.</div>
+          <div id="rulesCountStatus" class="rules-count-status" hidden></div>
 
           <div id="ruleBuilderHeader" class="rule-builder-header">
             <div class="panel-title">Custom Filter Options</div>

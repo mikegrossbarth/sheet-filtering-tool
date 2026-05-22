@@ -1,80 +1,104 @@
 # Sheet Filtering Tool
 
-Chrome MV3 extension for reviewing an open Google Sheet against selected rule sets.
+Chrome extension for reviewing an open Google Sheet against saved buying/filter rules.
 
-## What it does
+## Best Way To Share It
 
-- Shows a popup only when the active tab is a Google Sheet.
-- Lets the user select one or more saved filters from a top Filter Selection box.
-- Opens as a draggable Google Sheets-native overlay, similar to the Live Comps panel.
-- Appears only on Google Sheets pages and can be minimized or closed.
-- Lets the user create, save, edit, delete, and re-select named custom filters.
-- Edit Filter opens a single-choice overlay so one saved filter is selected for editing.
-- Each custom filter can contain multiple filter rules.
-- Each filter rule supports:
-  - Sport
-  - Multiple price ranges
-  - PSA, BGS, and SGC allowed checkboxes and grade ranges from 1-10
-- Optional synced rule sources can be layered into the custom review:
-  - Synced Google Keep rules file
-  - Google Sheets rules file URL
-- Highlights visible Google Sheets cells red when they do not match the active custom filter.
+For other people to use this without creating their own keys, OAuth clients, or Google Cloud projects, publish this extension through the Chrome Web Store.
 
-The Google Keep sync follows the same shape as `live-comps`: open the Keep note once, the Keep content script snapshots the visible note text into extension storage, and the sheet review reads that cached note.
+That gives users the simple path:
 
-## Install locally
+1. Install Sheet Filtering Tool from the Chrome Web Store.
+2. Open a Google Sheet.
+3. Select or create a saved filter.
+4. Link a Google Keep note or Google Sheets rules file if needed.
+5. Click Review Sheet.
+
+Users should not need to create API keys or edit code. The extension includes the OAuth client in `manifest.json`; once the Chrome Web Store item and Google OAuth consent screen are approved, users only grant the extension access when Chrome asks for it.
+
+## Important Google Limitation
+
+There is no practical way to permanently fill private Google Sheets cells green/yellow without Google authorization. The extension currently uses the Google Sheets API for the actual fill color update, so Chrome/Google must authorize that access.
+
+What we can avoid:
+
+- every user making their own Google Cloud project
+- every user pasting a client ID
+- every user loading a local developer build
+- unverified-app warnings after the production OAuth app is verified
+
+What we cannot avoid for real sheet editing:
+
+- the user must be signed into Google
+- the user must install the extension
+- the user may need to approve the extension's Sheets permission once
+
+## What It Does
+
+- Appears only on Google Sheets pages.
+- Opens as a draggable, minimizable native overlay.
+- Lets users create, save, edit, delete, and select saved filters.
+- Supports Google Keep-backed and Google Sheets-backed rules.
+- Refreshes linked Keep/Sheet rules every time Review Sheet runs.
+- Shows a compact synced-source status and parsed rule count.
+- Reviews every row from the active sheet export.
+- Fills accepted rows green.
+- Fills duplicate accepted rows yellow.
+- Clears previous extension-applied fills before each review.
+
+## Rule Sources
+
+Saved filters can use:
+
+- manual custom filter rules
+- a Google Keep rules note
+- a Google Sheets rules workbook
+
+Keep and Sheets sources are treated as live rule files. Review Sheet refreshes the selected source before parsing rules.
+
+## Local Development Install
 
 1. Open `chrome://extensions`.
 2. Enable Developer mode.
 3. Click Load unpacked.
-4. Select `C:\Users\User\Documents\Codex\2026-05-21\automatic-sheet-review\extension`.
+4. Select this folder:
+
+```text
+C:\Users\User\Documents\Codex\2026-05-21\automatic-sheet-review\Sheet Filtering Tool
+```
+
 5. Open a Google Sheet.
-6. The Sheet Review panel appears on the Google Sheet. Click the extension icon to re-open it if closed.
-7. Choose one or more saved filters from Filter Selection, or use Make New Filter in Custom Filter.
-8. Click Review Sheet.
+6. The Sheet Review panel appears on the sheet.
 
-## Development check
+Local developer installs are for testing only. For normal users, use the Chrome Web Store route.
 
-From this folder:
+## Checks
 
 ```powershell
 npm run check
 ```
 
-## Google Keep Rule Format
+## Package For Chrome Web Store
 
-The extension can optionally read text from an open Google Keep tab. Saved custom filters are the main workflow, but Keep text can still be synced as an additional rule source. Put the note in this shape:
+```powershell
+npm run package
+```
+
+The ZIP will be created in `dist/`.
+
+## Production Setup Checklist
+
+1. Create or use the production Chrome Web Store listing.
+2. Make sure the extension ID in Chrome Web Store matches the OAuth client configuration in Google Cloud.
+3. Configure the OAuth consent screen for the production project.
+4. Add the Google Sheets API scope used by the extension:
 
 ```text
-[Custom]
-football $100-$250
-football $350-$500
-exclude: damaged
+https://www.googleapis.com/auth/spreadsheets
 ```
 
-JSON is also supported:
+5. Submit the OAuth app for Google verification if required.
+6. Upload the packaged ZIP to the Chrome Web Store.
+7. Publish to trusted testers or public users.
 
-```json
-{
-  "custom": {
-    "rules": [
-      {
-        "sport": "football",
-        "priceRanges": [
-          { "min": 100, "max": 250 },
-          { "min": 350, "max": 500 }
-        ],
-        "grades": {
-          "psa": { "min": 9, "max": 10 },
-          "bgs": { "min": 9.5, "max": 10 },
-          "sgc": { "min": 9, "max": 10 }
-        }
-      }
-    ]
-  }
-}
-```
-
-## Current limitation
-
-Google Sheets virtualizes the grid DOM, so this first version reviews and highlights the cells currently rendered in the sheet viewport. As the next hardening pass, wire this to the Google Sheets API or an Apps Script endpoint if you need full-sheet review across hidden/unrendered rows.
+After this, users install from the store and do not need keys, client IDs, or local setup.
