@@ -4,15 +4,15 @@
       id: "default_arena_club_filter",
       name: "ARENA CLUB FILTER",
       rulesSource: "sheet",
-      sheetRulesUrl: "https://docs.google.com/spreadsheets/d/1ONKU22t77Q50qLqQcvQHYyW9rhm6izhmWiRrEgJyihc/edit",
-      defaultVersion: 1,
+      sheetRulesUrl: "",
+      defaultVersion: 2,
       rules: []
     },
     {
       id: "default_bgs_filter",
       name: "BGS FILTER",
       rulesSource: "none",
-      sheetRulesUrl: "https://docs.google.com/spreadsheets/d/1ILMe5ce4RjTkL4Q-WLTn2ocoMCiooXzFqlXClmNWbpU/edit?gid=1179492641#gid=1179492641",
+      sheetRulesUrl: "",
       defaultVersion: 1,
       rules: [
         {
@@ -40,15 +40,15 @@
       id: "default_graded_grails_filter",
       name: "GRADED GRAILS FILTER",
       rulesSource: "sheet",
-      sheetRulesUrl: "https://docs.google.com/spreadsheets/d/1ILMe5ce4RjTkL4Q-WLTn2ocoMCiooXzFqlXClmNWbpU/edit?gid=1179492641#gid=1179492641",
-      defaultVersion: 1,
+      sheetRulesUrl: "",
+      defaultVersion: 2,
       rules: []
     },
     {
       id: "default_psa_filter",
       name: "PSA FILTER",
       rulesSource: "none",
-      sheetRulesUrl: "https://docs.google.com/spreadsheets/d/1ILMe5ce4RjTkL4Q-WLTn2ocoMCiooXzFqlXClmNWbpU/edit?gid=1179492641#gid=1179492641",
+      sheetRulesUrl: "",
       defaultVersion: 1,
       rules: [
         {

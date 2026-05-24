@@ -35,12 +35,14 @@ assert.deepEqual(Array.from(defaultFilters, (filter) => filter.name), [
   "PSA FILTER"
 ]);
 assert.equal(defaultFilters.find((filter) => filter.name === "ARENA CLUB FILTER").rulesSource, "sheet");
-assert.match(defaultFilters.find((filter) => filter.name === "ARENA CLUB FILTER").sheetRulesUrl, /1ONKU22t77Q50qLqQcvQHYyW9rhm6izhmWiRrEgJyihc/);
+assert.equal(defaultFilters.find((filter) => filter.name === "ARENA CLUB FILTER").sheetRulesUrl, "");
 assert.equal(defaultFilters.find((filter) => filter.name === "ARENA CLUB FILTER").rules.length, 0);
 assert.equal(defaultFilters.find((filter) => filter.name === "COURT YARD FILTER").rulesSource, "keep");
 assert.equal(defaultFilters.find((filter) => filter.name === "COURT YARD FILTER").rules.length, 0);
 assert.equal(defaultFilters.find((filter) => filter.name === "GRADED GRAILS FILTER").rulesSource, "sheet");
-assert.match(defaultFilters.find((filter) => filter.name === "GRADED GRAILS FILTER").sheetRulesUrl, /1ILMe5ce4RjTkL4Q-WLTn2ocoMCiooXzFqlXClmNWbpU/);
+assert.equal(defaultFilters.find((filter) => filter.name === "GRADED GRAILS FILTER").sheetRulesUrl, "");
 assert.equal(defaultFilters.find((filter) => filter.name === "GRADED GRAILS FILTER").rules.length, 0);
+assert.equal(defaultFilters.find((filter) => filter.name === "BGS FILTER").sheetRulesUrl, "");
+assert.equal(defaultFilters.find((filter) => filter.name === "PSA FILTER").sheetRulesUrl, "");
 
 console.log("manifest tests passed");
