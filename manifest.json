@@ -41,6 +41,7 @@
         "src/popup.html",
         "src/popup.css",
         "src/popup.js",
+        "src/default-filters.js",
         "src/player-sport-data.js",
         "src/rules-engine.js"
       ],

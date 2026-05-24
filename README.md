@@ -38,6 +38,7 @@ What we cannot avoid for real sheet editing:
 - Appears only on Google Sheets pages.
 - Opens as a draggable, minimizable native overlay.
 - Lets users create, save, edit, delete, and select saved filters.
+- Ships with bundled default filters for Arena Club, BGS, Graded Grails, and PSA.
 - Supports Google Keep-backed and Google Sheets-backed rules.
 - Refreshes linked Keep/Sheet rules every time Review Sheet runs.
 - Shows a compact synced-source status and parsed rule count.

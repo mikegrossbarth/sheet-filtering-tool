@@ -1,8 +1,4 @@
 chrome.runtime.onInstalled.addListener(async () => {
-  await chrome.storage.sync.set({
-    selectedModes: ["arenaClub"],
-    rulesSource: "keep"
-  });
   await configureAllTabs();
 });
 
@@ -27,14 +23,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.action === "openSheetReviewRulesNote") {
-    openSheetReviewRulesNote()
+    openSheetReviewRulesNote(message.noteUrl)
       .then((result) => sendResponse({ success: true, data: result }))
       .catch((error) => sendResponse({ success: false, error: error.message }));
     return true;
   }
 
   if (message.action === "refreshKeepRulesNote") {
-    refreshKeepRulesNote()
+    refreshKeepRulesNote(message.noteUrl, {
+      expectedTitle: message.expectedTitle,
+      minTextLength: message.minTextLength,
+      minRuleLineCount: message.minRuleLineCount
+    })
       .then((result) => sendResponse({ success: true, ...result }))
       .catch((error) => sendResponse({ success: false, error: error.message }));
     return true;
@@ -77,15 +77,20 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   await configureForTab(tabId, tab);
 });
 
-async function openSheetReviewRulesNote() {
+async function openSheetReviewRulesNote(noteUrlOverride = "") {
   const stored = await chrome.storage.local.get(["sheetReviewRulesNote"]);
   const storedUrl = String(stored.sheetReviewRulesNote?.url || "").trim();
-  const noteUrl = storedUrl.startsWith("https://keep.google.com/")
+  const requestedUrl = String(noteUrlOverride || "").trim();
+  const noteUrl = requestedUrl.startsWith("https://keep.google.com/")
+    ? requestedUrl
+    : storedUrl.startsWith("https://keep.google.com/")
     ? storedUrl
     : "https://keep.google.com/#search/text%3DArena%2520Club";
 
   const tabs = await chrome.tabs.query({ url: "https://keep.google.com/*" });
-  const existing = tabs.find((tab) => String(tab.url || "").startsWith(noteUrl)) || tabs[0];
+  const existing = tabs.find((tab) => urlsReferToSameKeepNote(tab.url, noteUrl)) ||
+    tabs.find((tab) => String(tab.url || "").startsWith(noteUrl)) ||
+    (requestedUrl ? null : tabs[0]);
   if (existing?.id) {
     await chrome.tabs.update(existing.id, { active: true });
     if (existing.windowId != null) {
@@ -98,30 +103,40 @@ async function openSheetReviewRulesNote() {
   return { status: "opened_new", url: tab.url || noteUrl };
 }
 
-async function refreshKeepRulesNote() {
+async function refreshKeepRulesNote(noteUrlOverride = "", expected = {}) {
   const stored = await chrome.storage.local.get(["sheetReviewRulesNote"]);
   const storedNote = stored.sheetReviewRulesNote || {};
-  const storedUrl = String(storedNote.url || "").trim();
+  const storedUrl = String(noteUrlOverride || storedNote.url || "").trim();
   const tabs = await chrome.tabs.query({ url: "https://keep.google.com/*" });
-  const preferredTab = tabs.find((tab) => storedUrl && String(tab.url || "").startsWith(storedUrl)) || tabs[0];
+  let preferredTab = tabs.find((tab) => urlsReferToSameKeepNote(tab.url, storedUrl)) ||
+    tabs.find((tab) => storedUrl && String(tab.url || "").startsWith(storedUrl)) ||
+    null;
 
   if (!preferredTab?.id) {
-    throw new Error("Open the linked Google Keep rule note once so the extension can refresh it before review.");
+    if (!storedUrl.startsWith("https://keep.google.com/")) {
+      throw new Error("Sync this filter to a Google Keep rule note once before reviewing.");
+    }
+    preferredTab = await chrome.tabs.create({ url: storedUrl, active: false });
+  } else if (storedUrl.startsWith("https://keep.google.com/")) {
+    await chrome.tabs.update(preferredTab.id, { url: storedUrl });
   }
 
-  const response = await chrome.tabs.sendMessage(preferredTab.id, {
-    type: "AUTO_SHEET_REVIEW_READ_KEEP_NOTE"
-  }).catch((error) => ({ error: error?.message || "Could not read the open Keep note." }));
+  await waitForTabComplete(preferredTab.id);
+  const response = await readKeepNoteFromTab(preferredTab.id, storedUrl, expected);
 
   const text = String(response?.text || "").trim();
   if (!text) {
-    throw new Error("Could not read rules from the open Google Keep note. Open the rule note itself, then review again.");
+    throw new Error("Could not read rules from the linked Google Keep note. Open the rule note itself, then sync once.");
+  }
+  const confidenceError = keepReadConfidenceError(response, expected);
+  if (confidenceError) {
+    throw new Error(confidenceError);
   }
 
   const note = {
     text,
     title: String(response?.title || extractKeepTitle(text)),
-    url: String(preferredTab.url || storedUrl || "https://keep.google.com/"),
+    url: String(response?.url || preferredTab.url || storedUrl || "https://keep.google.com/"),
     synced_at: new Date().toISOString()
   };
   await chrome.storage.local.set({ sheetReviewRulesNote: note });
@@ -130,6 +145,120 @@ async function refreshKeepRulesNote() {
     note,
     refreshed: true
   };
+}
+
+async function readKeepNoteFromTab(tabId, noteUrl, expected = {}) {
+  let lastResponse = null;
+  let lastText = "";
+  let stableTextReads = 0;
+  let lastConfidenceError = "";
+
+  for (let attempt = 0; attempt < 28; attempt += 1) {
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: "AUTO_SHEET_REVIEW_READ_KEEP_NOTE"
+    }).catch((error) => ({ error: error?.message || "Could not read the linked Keep note." }));
+
+    lastResponse = response;
+    const text = String(response?.text || "").trim();
+    if (text) {
+      stableTextReads = text === lastText ? stableTextReads + 1 : 1;
+      lastText = text;
+      lastConfidenceError = keepReadConfidenceError(response, expected);
+      if (stableTextReads >= 3 && looksLikeRulesText(text) && !lastConfidenceError) {
+        return response;
+      }
+    }
+
+    if (attempt === 4 && noteUrl) {
+      await chrome.tabs.update(tabId, { url: noteUrl });
+      await waitForTabComplete(tabId);
+    }
+    await sleep(1000);
+  }
+  if (lastConfidenceError) {
+    throw new Error(lastConfidenceError);
+  }
+  return lastResponse;
+}
+
+function waitForTabComplete(tabId) {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(done, 8000);
+
+    function done() {
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    }
+
+    function listener(updatedTabId, changeInfo) {
+      if (updatedTabId === tabId && changeInfo.status === "complete") {
+        done();
+      }
+    }
+
+    chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError || tab?.status === "complete") done();
+    });
+  });
+}
+
+function urlsReferToSameKeepNote(first, second) {
+  const firstId = keepNoteId(first);
+  const secondId = keepNoteId(second);
+  return Boolean(firstId && secondId && firstId === secondId);
+}
+
+function keepNoteId(value) {
+  return String(value || "").match(/(?:#|\/)(?:NOTE|notes?)\/?([A-Za-z0-9._-]+)/i)?.[1] || "";
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function looksLikeRulesText(text) {
+  return /(?:range|\$|\bpsa\b|\bbgs\b|\bsgc\b|\bcgc\b|\bb-?ball\b|\bsoccer\b|\bfootball\b|\bbaseball\b|\bpoke\b|\bhockey\b)/i.test(text);
+}
+
+function keepReadConfidenceError(response, expected = {}) {
+  const text = String(response?.text || "").trim();
+  if (!text) return "";
+
+  const expectedTitle = String(expected.expectedTitle || "").trim();
+  const responseTitle = String(response?.title || extractKeepTitle(text)).trim();
+  if (
+    expectedTitle &&
+    responseTitle &&
+    normalizeKeepTitle(expectedTitle) !== normalizeKeepTitle(responseTitle)
+  ) {
+    return `Google Keep read did not match the linked note. Expected "${expectedTitle}", read "${responseTitle}". No rows were colored.`;
+  }
+
+  const minTextLength = Number(expected.minTextLength) || 0;
+  if (minTextLength > 0 && text.length < Math.floor(minTextLength * 0.95)) {
+    return `Google Keep note did not finish loading completely. Read ${text.length}/${minTextLength} characters. No rows were colored.`;
+  }
+
+  const minRuleLineCount = Number(expected.minRuleLineCount) || 0;
+  const ruleLineCount = countRuleLikeLines(text);
+  if (minRuleLineCount > 0 && ruleLineCount < minRuleLineCount) {
+    return `Google Keep note did not finish loading all rules. Read ${ruleLineCount}/${minRuleLineCount} rule lines. No rows were colored.`;
+  }
+
+  return "";
+}
+
+function normalizeKeepTitle(value) {
+  return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function countRuleLikeLines(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .filter((line) => /(?:\$|\b\d+(?:\.\d+)?k?\s*[-–—]\s*\d|\bpsa\b|\bbgs\b|\bsgc\b|\bcgc\b|\brange\b|\bsoccer\b|\bb-?ball\b|\bbasketball\b|\bfootball\b|\bbaseball\b|\bpoke\b|\bpokemon\b|\bhockey\b)/i.test(line))
+    .length;
 }
 
 function extractKeepTitle(text) {
@@ -195,10 +324,11 @@ async function fillReviewedSheetRows(message) {
       },
       cell: {
         userEnteredFormat: {
-          backgroundColor: null
+          backgroundColor: null,
+          backgroundColorStyle: null
         }
       },
-      fields: "userEnteredFormat.backgroundColor"
+      fields: "userEnteredFormat.backgroundColor,userEnteredFormat.backgroundColorStyle"
     }
   };
   const fillRequests = [
@@ -238,8 +368,16 @@ async function readRulesWorkbook(url) {
   const sheets = metadata.sheets || [];
   const tabSummaries = [];
   const textBlocks = [];
-  const workbookContext = buildWorkbookContext(sheets, token, spreadsheetId);
-  const context = await workbookContext;
+  const gradedGrailsWorkbook = await readGradedGrailsWorkbookIfPresent(sheets, token, spreadsheetId);
+  if (gradedGrailsWorkbook) {
+    return {
+      title: metadata.properties?.title || "Google Sheets rules file",
+      spreadsheetId,
+      ...gradedGrailsWorkbook
+    };
+  }
+
+  const context = await buildWorkbookContext(sheets, token, spreadsheetId);
 
   for (const sheet of sheets) {
     const title = sheet.properties?.title || "Untitled";
@@ -284,20 +422,75 @@ async function readSheetValues(spreadsheetId, title, token) {
   );
 }
 
+async function readGradedGrailsWorkbookIfPresent(sheets, token, spreadsheetId) {
+  const sheetTitles = sheets.map((sheet) => sheet.properties?.title || "");
+  if (!looksLikeGradedGrailsWorkbook(sheetTitles)) return null;
+
+  const dashboard = sheets.find((sheet) => /dashboard/i.test(sheet.properties?.title || ""));
+  if (!dashboard) return null;
+
+  const title = dashboard.properties?.title || "Dashboard";
+  const valuesPayload = await readSheetValues(spreadsheetId, title, token);
+  const values = valuesPayload.values || [];
+  const teamSportIndex = await loadTeamSportIndex();
+  const dashboardRules = extractGradedGrailsDashboardRules(values, teamSportIndex);
+  const rules = dashboardRules.length ? dashboardRules : [];
+
+  return {
+    text: rules.length ? [`# ${title}`, ...rules].join("\n") : "",
+    tabSummaries: [{ title, rules: rules.length, rows: values.length }]
+  };
+}
+
+function looksLikeGradedGrailsWorkbook(sheetTitles) {
+  return sheetTitles.some((title) => /dashboard/i.test(title)) &&
+    sheetTitles.some((title) => /^floor$/i.test(title)) &&
+    sheetTitles.some((title) => /^case hits$/i.test(title)) &&
+    sheetTitles.some((title) => /^grails$/i.test(title));
+}
+
 async function buildWorkbookContext(sheets, token, spreadsheetId) {
   const goatPlayers = new Set();
+  let gradedGrails = null;
+  const teamSportIndex = await loadTeamSportIndex();
   for (const sheet of sheets) {
     const title = sheet.properties?.title || "";
-    if (!/goats?/i.test(title)) continue;
     const valuesPayload = await readSheetValues(spreadsheetId, title, token);
-    extractPlayerNamesFromValues(valuesPayload.values || []).forEach((player) => goatPlayers.add(player));
+    const values = valuesPayload.values || [];
+    if (/goats?/i.test(title)) {
+      extractPlayerNamesFromValues(values).forEach((player) => goatPlayers.add(player));
+    }
+    if (/dashboard/i.test(title)) {
+      const dashboardRules = extractGradedGrailsDashboardRules(values, teamSportIndex);
+      if (dashboardRules.length || isGradedGrailsTable(values)) {
+        gradedGrails = { dashboardRules };
+      }
+    }
   }
-  return { goatPlayers: [...goatPlayers] };
+  const sheetTitles = sheets.map((sheet) => sheet.properties?.title || "");
+  if (
+    gradedGrails &&
+    (
+      gradedGrails.dashboardRules.length > 1 ||
+      (
+        sheetTitles.some((title) => /^floor$/i.test(title)) &&
+        sheetTitles.some((title) => /^case hits$/i.test(title)) &&
+        sheetTitles.some((title) => /^grails$/i.test(title))
+      )
+    )
+  ) {
+    gradedGrails.detected = true;
+  }
+  return { goatPlayers: [...goatPlayers], gradedGrails };
 }
 
 function synthesizeRulesFromSheetValues(title, values, context = {}) {
   if (/do not buy|never buy/i.test(title)) {
     return synthesizeDoNotBuyRules(values);
+  }
+
+  if (context.gradedGrails?.detected) {
+    return synthesizeGradedGrailsRules(title, values, context);
   }
 
   const specialized = synthesizeArenaClubRules(values, context);
@@ -317,6 +510,159 @@ function synthesizeRulesFromSheetValues(title, values, context = {}) {
   });
 
   return [...new Set(rules)];
+}
+
+function synthesizeGradedGrailsRules(title, values, context = {}) {
+  if (!context.gradedGrails?.detected) return [];
+  if (/dashboard/i.test(title)) {
+    return context.gradedGrails.dashboardRules || [];
+  }
+  if (/^(floor|case hits|grails|major grails)$/i.test(title)) return [];
+  return [];
+}
+
+function extractGradedGrailsDashboardRules(values, teamSportIndex = {}) {
+  const rules = ["sheet-type: graded-grails"];
+  const rows = values.slice(4);
+  const dashboardTeams = rows
+    .map((row) => cleanRuleLabel(row[0]))
+    .filter(isLikelyTeamName);
+  const workbookSport = inferDashboardSport(dashboardTeams, teamSportIndex);
+  if (workbookSport) {
+    rules.push(`target-sport: ${titleCaseSport(workbookSport)}`);
+  }
+
+  rows.forEach((row) => {
+    const team = cleanRuleLabel(row[0]);
+    if (!isLikelyTeamName(team)) return;
+    const sport = workbookSport || inferTeamSport(team, teamSportIndex);
+    if (!sport) return;
+    const sportLabel = titleCaseSport(sport);
+
+    const totalCards = parseCount(row[1]);
+    const highTierCount = parseCount(row[17]);
+    if (totalCards >= 3) return;
+
+    rules.push(`${sportLabel} ${team} $75-$200`);
+    if (highTierCount < 1) {
+      rules.push(`${sportLabel} ${team} $500-$850`);
+      rules.push(`${sportLabel} ${team} $1100-$1300`);
+    }
+  });
+  return [...new Set(rules)];
+}
+
+let cachedTeamSportIndex = null;
+
+async function loadTeamSportIndex() {
+  if (cachedTeamSportIndex) return cachedTeamSportIndex;
+  const fallback = buildStaticTeamSportIndex();
+  try {
+    const response = await fetch(chrome.runtime.getURL("src/player-sport-data.js"));
+    const source = await response.text();
+    const match = source.match(/window\.AutoSheetReviewPlayerSports\s*=\s*(\{[\s\S]*?\});\s*\}\)\(\);/);
+    if (!match) {
+      cachedTeamSportIndex = fallback;
+      return cachedTeamSportIndex;
+    }
+
+    const data = JSON.parse(match[1]);
+    cachedTeamSportIndex = Object.values(data.players || {}).reduce((index, player) => {
+      const sport = cleanRuleText(player.sport).toLowerCase();
+      const teams = Array.isArray(player.teams) ? player.teams : player.team ? [player.team] : [];
+      teams.forEach((team) => addTeamSport(index, team, sport));
+      return index;
+    }, fallback);
+  } catch {
+    cachedTeamSportIndex = fallback;
+  }
+  return cachedTeamSportIndex;
+}
+
+function buildStaticTeamSportIndex() {
+  const index = {};
+  const teamsBySport = {
+    baseball: [
+      "Angels", "Astros", "Athletics", "Blue Jays", "Braves", "Brewers", "Cardinals", "Cubs",
+      "Diamondbacks", "Dodgers", "Giants", "Guardians", "Mariners", "Marlins", "Mets", "Nationals",
+      "Orioles", "Padres", "Phillies", "Pirates", "Rangers", "Rays", "Red Sox", "Reds", "Rockies",
+      "Royals", "Tigers", "Twins", "White Sox", "Yankees"
+    ],
+    basketball: [
+      "76ers", "Bucks", "Bulls", "Cavaliers", "Celtics", "Clippers", "Grizzlies", "Hawks",
+      "Heat", "Hornets", "Jazz", "Kings", "Knicks", "Lakers", "Magic", "Mavericks", "Nets",
+      "Nuggets", "Pacers", "Pelicans", "Pistons", "Raptors", "Rockets", "Spurs", "Suns",
+      "Thunder", "Timberwolves", "Trail Blazers", "Warriors", "Wizards"
+    ],
+    football: [
+      "49ers", "Bears", "Bengals", "Bills", "Broncos", "Browns", "Buccaneers", "Cardinals",
+      "Chargers", "Chiefs", "Colts", "Commanders", "Cowboys", "Dolphins", "Eagles", "Falcons",
+      "Giants", "Jaguars", "Jets", "Lions", "Packers", "Panthers", "Patriots", "Raiders",
+      "Rams", "Ravens", "Saints", "Seahawks", "Steelers", "Texans", "Titans", "Vikings"
+    ],
+    hockey: [
+      "Avalanche", "Blackhawks", "Blue Jackets", "Blues", "Bruins", "Canadiens", "Canucks",
+      "Capitals", "Devils", "Ducks", "Flames", "Flyers", "Golden Knights", "Hurricanes",
+      "Islanders", "Jets", "Kings", "Kraken", "Lightning", "Mammoth", "Maple Leafs", "Oilers",
+      "Panthers", "Penguins", "Predators", "Rangers", "Red Wings", "Sabres", "Senators",
+      "Sharks", "Stars", "Utah Hockey Club", "Wild"
+    ]
+  };
+  Object.entries(teamsBySport).forEach(([sport, teams]) => {
+    teams.forEach((team) => addTeamSport(index, team, sport));
+  });
+  return index;
+}
+
+function addTeamSport(index, team, sport) {
+  const normalizedTeam = cleanRuleText(team).toLowerCase();
+  const normalizedSport = cleanRuleText(sport).toLowerCase();
+  if (!normalizedTeam || !normalizedSport) return;
+  index[normalizedTeam] ||= {};
+  index[normalizedTeam][normalizedSport] = (index[normalizedTeam][normalizedSport] || 0) + 1;
+}
+
+function inferDashboardSport(teams, teamSportIndex) {
+  const scores = {};
+  teams.forEach((team) => {
+    const options = teamSportIndex[cleanRuleText(team).toLowerCase()] || {};
+    Object.entries(options).forEach(([sport, count]) => {
+      scores[sport] = (scores[sport] || 0) + count;
+    });
+  });
+  return Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+}
+
+function inferTeamSport(team, teamSportIndex) {
+  const options = teamSportIndex[cleanRuleText(team).toLowerCase()] || {};
+  return Object.entries(options).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+}
+
+function titleCaseSport(sport) {
+  return cleanRuleText(sport).replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function parseCount(value) {
+  const match = String(value ?? "").match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function isLikelyTeamName(value) {
+  const text = cleanRuleLabel(value);
+  if (!text || text.length > 32) return false;
+  if (/team distribution|current total|total|avg|value|cards/i.test(text)) return false;
+  return /^[A-Za-z0-9 .'-]+$/.test(text);
+}
+
+function isGradedGrailsTable(values) {
+  return values.some((row) => {
+    const normalized = row.map((cell) => cleanRuleText(cell).toLowerCase());
+    return normalized.includes("cert") &&
+      normalized.includes("card") &&
+      normalized.includes("cost") &&
+      normalized.includes("team") &&
+      normalized.includes("player name");
+  });
 }
 
 function synthesizeDoNotBuyRules(values) {

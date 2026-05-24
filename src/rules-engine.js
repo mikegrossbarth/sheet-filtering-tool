@@ -10,13 +10,8 @@
     soccer: ["soccer", "futbol", "premier league", "uefa", "fifa"],
     baseball: ["baseball", "mlb"],
     basketball: ["basketball", "b-ball", "bball", "nba"],
-    "b-ball": ["basketball", "b-ball", "bball", "nba"],
-    bball: ["basketball", "b-ball", "bball", "nba"],
-    nba: ["basketball", "b-ball", "bball", "nba"],
     hockey: ["hockey", "nhl"],
-    nhl: ["hockey", "nhl"],
     pokemon: ["pokemon", "poke"],
-    poke: ["pokemon", "poke"],
     "one piece": ["one piece", "onepiece", "one_piece", "1 piece"]
   };
 
@@ -48,6 +43,7 @@
   };
 
   const PLAYER_DISPLAY_NAMES = {};
+  const PLAYER_TEAM_HINTS = {};
   const PARTIAL_PLAYER_HINTS = {};
   const GRADE_COMPANIES = ["psa", "bgs", "sgc", "cgc"];
 
@@ -65,6 +61,8 @@
     }
     PLAYER_SPORT_HINTS[player] = value.sport;
     if (value.displayName) PLAYER_DISPLAY_NAMES[player] = value.displayName;
+    const teams = Array.isArray(value.teams) ? value.teams : value.team ? [value.team] : [];
+    if (teams.length) PLAYER_TEAM_HINTS[player] = teams.map((team) => String(team || "").trim()).filter(Boolean);
   });
   Object.keys(PLAYER_SPORT_HINTS).forEach((player) => {
     PLAYER_DISPLAY_NAMES[player] ||= titleCaseName(player);
@@ -112,7 +110,9 @@
       if (!match) return;
 
       const key = normalizeKey(match[1]);
-      const value = match[2].split(",").map((item) => item.trim()).filter(Boolean);
+      const value = key === "playerteam"
+        ? [match[2].trim()].filter(Boolean)
+        : match[2].split(",").map((item) => item.trim()).filter(Boolean);
       if (result[currentMode][key] != null) {
         result[currentMode][key] = [...toList(result[currentMode][key]), ...value];
       } else {
@@ -142,6 +142,9 @@
       sports: toList(normalized.sports || normalized.sport),
       includeKeywords: toList(normalized.includekeywords || normalized.include || normalized.keywords),
       excludeKeywords: toList(normalized.excludekeywords || normalized.exclude),
+      playerTeams: normalizePlayerTeamRules(normalized.playerteam || normalized.playerteams),
+      sheetType: cleanRuleText(normalized.sheettype || normalized.ruletype || normalized.sourcekind || ""),
+      targetSport: canonicalCategory(normalized.targetsport || normalized.reviewSport || normalized.workbookSport || ""),
       minPrice: toNumber(normalized.minprice || normalized.minimumprice),
       maxPrice: toNumber(normalized.maxprice || normalized.maximumprice),
       blockRules: [
@@ -196,9 +199,10 @@
     }
 
     const ruleFromRange = (range, sport) => ({
-      sport: canonicalCategory(sport || range.category || range.matcher || ""),
+      sport: canonicalCategory(sport || range.sport || range.category || ""),
+      matcher: range.matcher || "",
       priceRanges: range.kind === "amount" ? [{ min: range.min, max: range.max }] : [],
-      grades: gradesFromAllowedCompanies(range.allowedCompanies, range.cgcPokeOnly, sport || range.category || range.matcher || "")
+      grades: gradesFromAllowedCompanies(range.allowedCompanies, range.cgcPokeOnly, sport || range.sport || range.category || "")
     });
 
     if (rangeRules.length) {
@@ -222,6 +226,12 @@
       return false;
     }
 
+    if (ruleSetAllowsTeamChecks(ruleSet)) {
+      if (!valueMatchesTargetSport(value, ruleSet.targetSport)) {
+        return false;
+      }
+      value = enrichValueWithRuleSetTeams(value, ruleSet);
+    }
     const haystack = value.text.toLowerCase();
     if (ruleSet.blockRules.some((rule) => blockRuleMatchesValue(rule, value))) {
       return false;
@@ -232,7 +242,7 @@
     }
 
     if (ruleSet.customRules.length) {
-      return ruleSet.customRules.some((rule) => customRuleMatchesValue(rule, value));
+      return ruleSet.customRules.some((rule) => customRuleMatchesValue(rule, value, ruleSet));
     }
 
     if (ruleSet.rangeRules.length) {
@@ -267,6 +277,8 @@
 
   function isRuleSetConfigured(ruleSet) {
     return Boolean(
+      ruleSet.sheetType ||
+      ruleSet.targetSport ||
       ruleSet.sports.length ||
       ruleSet.includeKeywords.length ||
       ruleSet.excludeKeywords.length ||
@@ -347,12 +359,99 @@
     return rules
       .map((rule) => {
         const sport = selectedRuleValue(rule.sport, rule.sportOther);
+        const matcher = selectedRuleValue(rule.matcher, "");
         const priceRanges = normalizePriceRanges(rule.priceRanges);
         const grades = normalizeGrades(rule.grades);
-        const configured = Boolean(sport || priceRanges.length || Object.keys(grades).length);
-        return configured ? { sport, priceRanges, grades } : null;
+        const configured = Boolean(sport || matcher || priceRanges.length || Object.keys(grades).length);
+        return configured ? { sport, matcher, priceRanges, grades } : null;
       })
       .filter(Boolean);
+  }
+
+  function normalizePlayerTeamRules(value) {
+    return toList(value)
+      .map((entry) => {
+        const match = String(entry || "").match(/^(.+?)\s*(?:=|->|:)\s*(.+)$/);
+        if (!match) return null;
+        return {
+          player: cleanRuleText(match[1]),
+          team: match[2].trim()
+        };
+      })
+      .filter((rule) => rule?.player && rule.team);
+  }
+
+  function enrichValueWithRuleSetTeams(value, ruleSet) {
+    const teams = new Set(toList(value.team));
+    (value.teamCorrelations || []).forEach((correlation) => toList(correlation.team).forEach((team) => teams.add(team)));
+    const playerKeys = [
+      cleanRuleText(value.playerName || ""),
+      ...(value.sportCorrelations || []).map((correlation) => cleanRuleText(correlation.key || correlation.playerName || ""))
+    ].filter(Boolean);
+
+    (ruleSet.playerTeams || []).forEach((rule) => {
+      if (playerKeys.includes(rule.player)) teams.add(rule.team);
+    });
+
+    const teamList = [...teams].filter(Boolean);
+    if (!teamList.length) return value;
+    return {
+      ...value,
+      team: value.team || teamList[0],
+      teams: teamList,
+      teamCorrelations: [
+        ...(value.teamCorrelations || []),
+        ...teamList.map((team) => ({ team, source: "rule-set" }))
+      ]
+    };
+  }
+
+  function valueNeedsTeamReview(value, ruleSets = []) {
+    const relevantRuleSets = (ruleSets || []).filter((ruleSet) =>
+      ruleSetAllowsTeamChecks(ruleSet) && ruleSetUsesInferredTeamForValue(ruleSet, value)
+    );
+    if (!relevantRuleSets.length) return false;
+
+    const enriched = relevantRuleSets.reduce((current, ruleSet) => enrichValueWithRuleSetTeams(current, ruleSet), value);
+    const teams = [
+      ...toList(enriched.team),
+      ...toList(enriched.teams),
+      ...(enriched.teamCorrelations || []).flatMap((correlation) => toList(correlation.team))
+    ].map(cleanRuleText).filter(Boolean);
+    const uniqueTeams = [...new Set(teams)];
+    if (uniqueTeams.length <= 1) return false;
+
+    const haystack = cleanRuleText(enriched.text || "");
+    const teamIsPrintedOnRow = uniqueTeams.some((team) => haystack.includes(team));
+    return !teamIsPrintedOnRow;
+  }
+
+  function ruleSetUsesInferredTeamForValue(ruleSet, value) {
+    const haystack = cleanRuleText(value.text || "");
+    const matchers = [
+      ...(ruleSet.rangeRules || []).map((rule) => rule.matcher),
+      ...(ruleSet.customRules || []).map((rule) => rule.matcher),
+      ...(ruleSet.playerTeams || []).map((rule) => rule.team)
+    ].filter(Boolean);
+
+    return matchers.some((matcher) => {
+      const normalizedMatcher = cleanRuleText(matcher);
+      return teamMatchesValue(normalizedMatcher, value) && !haystack.includes(normalizedMatcher);
+    });
+  }
+
+  function ruleSetAllowsTeamChecks(ruleSet) {
+    return /^graded[- ]grails$/.test(cleanRuleText(ruleSet?.sheetType || ruleSet?.raw?.sheettype || ""));
+  }
+
+  function valueMatchesTargetSport(value, targetSport) {
+    const target = canonicalCategory(targetSport);
+    if (!target) return true;
+    const sports = new Set([
+      canonicalCategory(value.sport || ""),
+      ...(value.sportCorrelations || []).map((correlation) => canonicalCategory(correlation.sport || ""))
+    ].filter(Boolean));
+    return !sports.size || sports.has(target);
   }
 
   function normalizePriceRanges(ranges) {
@@ -387,9 +486,12 @@
     }, {});
   }
 
-  function customRuleMatchesValue(rule, value) {
+  function customRuleMatchesValue(rule, value, ruleSet) {
     const haystack = cleanRuleText(value.text);
     if (rule.sport && !sportMatchesValue(rule.sport, value, haystack)) {
+      return false;
+    }
+    if (rule.matcher && !matcherMatchesValue(rule.matcher, value, haystack, ruleSetAllowsTeamChecks(ruleSet))) {
       return false;
     }
 
@@ -419,6 +521,7 @@
 
   function selectedRuleValue(value, otherValue) {
     if (value === "custom") return String(otherValue || "").trim();
+    if (cleanRuleText(value) === "any sport") return "";
     return String(value || "").trim();
   }
 
@@ -473,10 +576,12 @@
     if (!rangeMatch) return null;
 
     const leadingMatcher = cleanRuleText(raw.slice(0, rangeMatch.index));
+    const scopedMatcher = splitLeadingSportScope(leadingMatcher);
     return {
       raw,
-      matcher: leadingMatcher,
-      category: section ? leadingMatcher : "",
+      matcher: scopedMatcher.matcher,
+      sport: scopedMatcher.sport,
+      category: section ? scopedMatcher.matcher || scopedMatcher.sport : "",
       ...parseRuleRangeNumbers(rangeMatch[1], rangeMatch[2]),
       kind: rangeMatch[3] ? "percent" : "amount",
       allowedCompanies: section?.allowedCompanies || [],
@@ -498,6 +603,10 @@
 
   function rangeRuleMatchesValue(rule, value, ruleSet) {
     const haystack = cleanRuleText(value.text);
+    if (rule.sport && !sportMatchesValue(rule.sport, value, haystack)) {
+      return false;
+    }
+
     if (ruleSet.sports.length && !ruleSet.sports.some((sport) => aliasesFor(sport).some((alias) => haystack.includes(cleanRuleText(alias))))) {
       return false;
     }
@@ -510,7 +619,7 @@
     }
 
     if (rule.matcher && rule.matcher !== "all" && rule.matcher !== "*") {
-      if (!matcherMatchesText(rule.matcher, haystack)) return false;
+      if (!matcherMatchesValue(rule.matcher, value, haystack, ruleSetAllowsTeamChecks(ruleSet))) return false;
     }
 
     if (rule.allowedCompanies?.length) {
@@ -527,6 +636,20 @@
     }
 
     return rule.kind !== "amount";
+  }
+
+  function splitLeadingSportScope(value) {
+    const cleaned = cleanRuleText(value);
+    if (!cleaned) return { sport: "", matcher: "" };
+    const aliases = Object.entries(CATEGORY_ALIASES)
+      .flatMap(([sport, values]) => values.map((alias) => ({ sport: canonicalCategory(sport), alias: cleanRuleText(alias) })))
+      .sort((a, b) => b.alias.length - a.alias.length);
+    const match = aliases.find(({ alias }) => cleaned === alias || cleaned.startsWith(`${alias} `));
+    if (!match) return { sport: "", matcher: cleaned };
+    return {
+      sport: match.sport,
+      matcher: cleaned.slice(match.alias.length).trim()
+    };
   }
 
   function parseCellValue(text) {
@@ -548,12 +671,17 @@
 
   function parseCardRow(descriptionText, rowText = descriptionText) {
     const description = String(descriptionText || "").trim();
-    const combined = [description, rowText].filter(Boolean).join(" ");
+    const fullRowText = String(rowText || "").trim();
+    const combined = description && fullRowText && cleanRuleText(description) !== cleanRuleText(fullRowText)
+      ? `${description} ${fullRowText}`
+      : description || fullRowText;
     const parsed = parseCellValue(combined);
     const descriptionParsed = parseCardDescription(description || combined);
     const combinedParsed = description && description !== combined ? parseCardDescription(combined) : descriptionParsed;
     const sportCorrelations = findKnownPlayerSports(combined);
+    const teamCorrelations = findKnownPlayerTeams(combined, sportCorrelations);
     const primaryCorrelation = sportCorrelations[0] || {};
+    const primaryTeam = teamCorrelations[0]?.team || null;
     const playerName = descriptionParsed.playerName || combinedParsed.playerName || primaryCorrelation.playerName || null;
     const sport = descriptionParsed.sport || combinedParsed.sport || primaryCorrelation.sport || null;
     return {
@@ -563,6 +691,8 @@
       description,
       sport,
       sportCorrelations,
+      team: descriptionParsed.team || combinedParsed.team || primaryTeam,
+      teamCorrelations,
       playerName,
       year: descriptionParsed.year,
       productName: descriptionParsed.productName,
@@ -598,6 +728,7 @@
     const productName = inferProductName(raw, playerName, year);
     const sport = inferSport(raw, playerName);
     const sportCorrelations = findKnownPlayerSports(raw);
+    const teamCorrelations = findKnownPlayerTeams(raw, sportCorrelations);
 
     return {
       playerName,
@@ -606,6 +737,8 @@
       numbering,
       sport,
       sportCorrelations,
+      team: teamCorrelations[0]?.team || null,
+      teamCorrelations,
       gradeCompany: gradeInfo.gradeCompany,
       gradingCompany: gradeInfo.gradeCompany,
       grade: gradeInfo.grade
@@ -649,9 +782,12 @@
     if (playerName) value = value.replace(new RegExp(escapeRegExp(playerName), "i"), "");
     value = value
       .replace(/\b(PSA|BGS|SGC|CGC)\b.*$/i, "")
+      .replace(/\$?\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?/g, "")
       .replace(/#\s?[A-Z0-9-]+/gi, "")
-      .replace(/\b\d+\/\d+\b/g, "")
+      .replace(/\b\d+\/\d+\b|\/\d+\b/g, "")
+      .replace(/\b(?:n\/a|na|none|null)\b/gi, "")
       .replace(/\b(auto|autograph|rookie|rc|refractor|parallel|silver|gold|red|blue|green)\b/gi, "")
+      .replace(/\s+\/\s*$/g, "")
       .replace(/\s+/g, " ")
       .trim();
     return value || null;
@@ -673,9 +809,11 @@
   function findKnownPlayerSports(raw) {
     const haystack = ` ${cleanRuleText(raw)} `;
     const seen = new Set();
-    const exactMatches = Object.keys(PLAYER_SPORT_HINTS)
+    const exactPlayerKeys = Object.keys(PLAYER_SPORT_HINTS)
       .sort((a, b) => b.length - a.length)
-      .filter((player) => haystack.includes(` ${cleanRuleText(player)} `))
+      .filter((player) => haystack.includes(` ${cleanRuleText(player)} `));
+    const exactMatches = exactPlayerKeys
+      .filter((player, index, players) => !players.slice(0, index).some((longerPlayer) => playerNameContains(longerPlayer, player)))
       .map((player) => ({
         key: player,
         playerName: PLAYER_DISPLAY_NAMES[player] || titleCaseName(player),
@@ -699,6 +837,58 @@
         seen.add(key);
         return true;
       });
+  }
+
+  function playerNameContains(longerPlayer, shorterPlayer) {
+    const longer = cleanRuleText(longerPlayer);
+    const shorter = cleanRuleText(shorterPlayer);
+    return longer !== shorter && longer.includes(shorter);
+  }
+
+  function findKnownPlayerTeams(raw, sportCorrelations = findKnownPlayerSports(raw)) {
+    const seen = new Set();
+    return sportCorrelations.flatMap((correlation) => {
+      const teams = PLAYER_TEAM_HINTS[correlation.key] || [];
+      return teams.map((team) => ({
+        key: correlation.key,
+        playerName: correlation.playerName,
+        sport: correlation.sport,
+        team
+      }));
+    }).filter((correlation) => {
+      const key = `${correlation.key}:${cleanRuleText(correlation.team)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function matcherMatchesValue(matcher, value, haystack, allowTeamChecks = false) {
+    return matcherMatchesText(matcher, haystack) ||
+      playerMatchesValue(matcher, value) ||
+      (allowTeamChecks && teamMatchesValue(matcher, value)) ||
+      sportLabelMatchesValue(matcher, value, haystack);
+  }
+
+  function teamMatchesValue(expectedTeam, value) {
+    const expected = cleanRuleText(expectedTeam);
+    if (!expected) return false;
+    const teams = [
+      ...toList(value.team),
+      ...toList(value.teams),
+      ...(value.teamCorrelations || []).flatMap((correlation) => toList(correlation.team))
+    ];
+    return teams.some((team) => cleanRuleText(team) === expected);
+  }
+
+  function playerMatchesValue(expectedPlayer, value) {
+    const expected = cleanRuleText(expectedPlayer);
+    if (!expected) return false;
+    const parsedPlayer = cleanRuleText(value.playerName || "");
+    if (parsedPlayer && parsedPlayer === expected) return true;
+    return (value.sportCorrelations || []).some((correlation) =>
+      cleanRuleText(correlation.playerName || "") === expected || cleanRuleText(correlation.key || "") === expected
+    );
   }
 
   function sportMatchesValue(expectedSport, value, haystack) {
@@ -725,6 +915,20 @@
     return matcherMatchesText(expectedSport, haystack);
   }
 
+  function sportLabelMatchesValue(expectedSport, value, haystack) {
+    if (!canonicalSportLabel(expectedSport)) return false;
+    return sportMatchesValue(expectedSport, value, haystack);
+  }
+
+  function canonicalSportLabel(value) {
+    const key = cleanRuleText(value);
+    if (!key) return "";
+    const match = Object.entries(CATEGORY_ALIASES).find(([category, aliases]) =>
+      cleanRuleText(category) === key || aliases.some((alias) => cleanRuleText(alias) === key)
+    );
+    return match?.[0] || "";
+  }
+
   function isNameLikeWord(word) {
     return /^[a-zA-Z][a-zA-Z'.-]+$/.test(word) && !PRODUCT_WORDS.has(word.toLowerCase());
   }
@@ -735,7 +939,7 @@
     const match = Object.entries(CATEGORY_ALIASES).find(([category, aliases]) =>
       cleanRuleText(category) === key || aliases.some((alias) => cleanRuleText(alias) === key)
     );
-    return match?.[0] === "b-ball" || match?.[0] === "bball" || match?.[0] === "nba" ? "basketball" : match?.[0] || key;
+    return match?.[0] || key;
   }
 
   function gradesFromAllowedCompanies(allowedCompanies, cgcPokeOnly, category) {
@@ -968,6 +1172,8 @@
     parseCardRow,
     duplicateKeyForCard,
     findKnownPlayerSports,
+    findKnownPlayerTeams,
+    valueNeedsTeamReview,
     valueMatchesRuleSet
   };
 })();

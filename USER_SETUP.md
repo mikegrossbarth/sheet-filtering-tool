@@ -26,7 +26,7 @@ The tool only appears on Google Sheets pages.
 ## Select A Filter
 
 1. Use the Filter Selection dropdown.
-2. Choose the saved filter you want to run.
+2. Choose the saved filter you want to run. New installs include default filters for Arena Club, BGS, Graded Grails, and PSA.
 3. If the filter uses Google Keep or a Google Sheets rules file, the tool will refresh those rules when you press Review Sheet.
 
 The tool will show how many rules were found from the connected source.

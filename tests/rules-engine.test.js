@@ -72,8 +72,170 @@ soccer $50 to $1200`;
 
   assert.equal(parsed.playerName, "Paul Skenes");
   assert.equal(parsed.sport, "baseball");
+  assert.equal(parsed.team, "Pirates");
   assert.equal(parsed.gradeCompany, "PSA");
   assert.equal(parsed.grade, 10);
+}
+
+{
+  const rowText = "Josh Allen 2018 Panini Donruss Optic PSA 10 97/299 $750";
+  const parsed = engine.parseCardRow("Josh Allen 2018 Panini Donruss Optic PSA 10 97/299", rowText);
+
+  assert.equal(parsed.playerName, "Josh Allen");
+  assert.equal(parsed.sport, "football");
+  assert.equal(parsed.year, "2018");
+  assert.equal(parsed.productName, "Panini Donruss Optic");
+  assert.equal(parsed.numbering, "97/299");
+  assert.equal(parsed.gradeCompany, "PSA");
+  assert.equal(parsed.grade, 10);
+  assert.equal(parsed.price, 750);
+}
+
+{
+  const rowText = "Shohei Ohtani 2025 Topps Now N/A 1/25 $250";
+  const parsed = engine.parseCardRow("Shohei Ohtani 2025 Topps Now 1/25", rowText);
+
+  assert.equal(parsed.playerName, "Shohei Ohtani");
+  assert.equal(parsed.sport, "baseball");
+  assert.equal(parsed.year, "2025");
+  assert.equal(parsed.productName, "Topps Now");
+  assert.equal(parsed.numbering, "1/25");
+  assert.equal(parsed.price, 250);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+Pirates $700-$1100
+Dodgers $700-$900`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Bowman Mega Box Chrome Paul Skenes PSA 10", "$900"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Topps Chrome Update Shohei Ohtani PSA 9", "$750"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Topps Chrome Update Shohei Ohtani Dodgers PSA 9", "$750"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Topps Chrome Update Shohei Ohtani PSA 9", "$950"), custom), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+sheet-type: graded-grails
+target-sport: Baseball
+Baseball Pirates $75-$200
+Baseball Pirates $500-$850
+Baseball Pirates $1100-$1300
+Baseball Dodgers $75-$200`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Bowman Mega Box Chrome Paul Skenes PSA 10", "$700"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Bowman Mega Box Chrome Paul Skenes PSA 10", "$1200"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Bowman Mega Box Chrome Paul Skenes PSA 10", "$900"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Bowman Mega Box Chrome Paul Skenes PSA 10", "$1400"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Topps Chrome Update Shohei Ohtani PSA 9", "$125"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Topps Chrome Update Shohei Ohtani PSA 9", "$50"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Topps Chrome Update Shohei Ohtani PSA 9", "$225"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Topps Chrome Update Shohei Ohtani PSA 9", "$750"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Panini Prizm Luka Doncic Lakers PSA 10", "$125"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Panini Immaculate Manu Ginobili Spurs PSA 10", "$125"), custom), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+sheet-type: graded-grails
+target-sport: Baseball
+Baseball Blue Jays $75-$200`, ["custom"], []);
+  const vladJr = engine.parseCardRow("2025 Topps Vladimir Guerrero Jr. PSA 10", "$125");
+
+  assert.deepEqual(vladJr.sportCorrelations.map((item) => item.playerName), ["Vladimir Guerrero Jr."]);
+  assert.equal(engine.valueMatchesRuleSet(vladJr, custom), true);
+  assert.equal(engine.valueNeedsTeamReview(vladJr, [custom]), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+sheet-type: graded-grails
+target-sport: Basketball
+Basketball Lakers $75-$200
+Basketball Lakers $500-$850
+Basketball Lakers $1100-$1300
+Basketball Warriors $75-$200`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("1996 Topps Kobe Bryant PSA 10", "$700"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("1996 Topps Kobe Bryant PSA 10", "$1200"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("1996 Topps Kobe Bryant PSA 10", "$900"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2020 Immaculate Stephen Curry Auto /25", "$125"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2020 Immaculate Stephen Curry Auto /25", "$900"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Bowman Mega Box Chrome Paul Skenes PSA 10", "$900"), custom), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+sheet-type: graded-grails
+target-sport: Baseball
+Basketball Nuggets $100-$5000
+Basketball Spurs $100-$5000
+Basketball Warriors $100-$5000`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2015 Donruss Nikola Jokic PSA 10", "$700"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Eminence Manu Ginobili Auto /3", "$915"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2020 Immaculate Stephen Curry Auto /25", "$898"), custom), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+sheet-type: graded-grails
+player-team: Ken Griffey Jr. = Reds
+Reds $75-$200
+Reds $500-$850
+Reds $1100-$1300`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2006 Upper Deck Ken Griffey Jr. PSA 10", "$700"), custom), true);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+sheet-type: graded-grails
+Reds $650-$750`, ["custom"], []);
+
+  const griffey = engine.parseCardRow("2006 Upper Deck Ken Griffey Jr. PSA 10", "$700");
+  assert.equal(engine.valueMatchesRuleSet(griffey, custom), true);
+  assert.equal(engine.valueNeedsTeamReview(griffey, [custom]), true);
+  assert.equal(engine.valueNeedsTeamReview(engine.parseCardRow("2006 Upper Deck Ken Griffey Jr. Reds PSA 10", "$700"), [custom]), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets("", ["custom"], [{ rules: [{
+    sport: "Any sport",
+    priceRanges: [{ min: 1, max: 5000 }],
+    grades: { psa: { allowed: true, min: 1, max: 10 } }
+  }] }]);
+
+  const griffey = engine.parseCardRow("2006 Upper Deck Ken Griffey Jr. PSA 10", "$700");
+  assert.equal(engine.valueMatchesRuleSet(griffey, custom), true);
+  assert.equal(engine.valueNeedsTeamReview(griffey, [custom]), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+sheet-type: graded-grails
+Bulls $1000-$5000
+Patriots $1000-$5000
+Oilers $1000-$5000`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("1996 Fleer Michael Jordan PSA 10", "$1500"), custom), true);
+  assert.equal(engine.valueNeedsTeamReview(engine.parseCardRow("1996 Fleer Michael Jordan PSA 10", "$1500"), [custom]), true);
+  assert.equal(engine.valueNeedsTeamReview(engine.parseCardRow("1996 Fleer Michael Jordan Bulls PSA 10", "$1500"), [custom]), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2000 Bowman Tom Brady PSA 10", "$3000"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("1979 O-Pee-Chee Wayne Gretzky PSA 8", "$2500"), custom), true);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+sheet-type: graded-grails
+Chiefs $1000-$3000
+Timberwolves $100-$500
+Blackhawks $100-$500`, ["custom"], []);
+
+  assert.equal(engine.parseCardRow("2024 Panini Prizm Patrick Mahomes PSA 10", "$1500").team, "Chiefs");
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Panini Prizm Patrick Mahomes PSA 10", "$1500"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Prizm Anthony Edwards PSA 10", "$300"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 Upper Deck Connor Bedard PSA 10", "$300"), custom), true);
 }
 
 {
@@ -209,6 +371,7 @@ nba $700–1k`;
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2015 donruss nikola jokic psa 10", "$100"), custom), true);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2011 hoops stephen curry bgs 9.5", "$425"), custom), true);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2020 immaculate stephen curry auto /25", "$900"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 topps chrome paul skenes psa 10", "$100"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2015 donruss nikola jokic psa 10", "$600"), custom), false);
 }
 
@@ -221,6 +384,7 @@ baseball $350-$500`;
 
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2011 hoops stephen curry bgs 9.5", "$3500"), custom), true);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2011 hoops stephen curry bgs 9.5", "$350"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 topps chrome paul skenes psa 10", "$3500"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm patrick mahomes psa 10", "$2500"), custom), true);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 topps chrome paul skenes psa 10", "$400"), custom), true);
 }

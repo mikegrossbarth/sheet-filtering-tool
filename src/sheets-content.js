@@ -1,7 +1,6 @@
 (function initAutoSheetReviewPanel() {
   if (window.__autoSheetReviewPanelInitialized) return;
   window.__autoSheetReviewPanelInitialized = true;
-  ensureReviewPanel();
 })();
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -43,7 +42,7 @@ function ensureReviewPanel(options = {}) {
       <div id="auto-sheet-review-panel-header">
         <span>Sheet Review</span>
         <div>
-          <button id="auto-sheet-review-panel-minimize" type="button" title="Minimize">_</button>
+          <button id="auto-sheet-review-panel-minimize" type="button" title="Minimize">-</button>
           <button id="auto-sheet-review-panel-close" type="button" title="Close">x</button>
         </div>
       </div>
@@ -71,7 +70,9 @@ function bindReviewPanel(panel) {
   let offsetY = 0;
 
   minimizeButton.addEventListener("click", () => {
-    panel.classList.toggle("is-minimized");
+    const minimized = panel.classList.toggle("is-minimized");
+    minimizeButton.textContent = minimized ? "+" : "-";
+    minimizeButton.title = minimized ? "Restore" : "Minimize";
   });
 
   closeButton.addEventListener("click", () => {
@@ -122,14 +123,19 @@ async function reviewExportedRows(ruleSets, rows) {
   let reviewed = 0;
   let accepted = 0;
   let duplicateWarnings = 0;
+  let teamReviewWarnings = 0;
   const sportSummary = createSportSummary();
   const acceptedRowNumbers = [];
-  const duplicateRowNumbers = [];
+  const warningRowNumbers = [];
   const seenItems = new Set();
+  const headerRowIndex = findHeaderRowIndex(rows);
+  const headers = headerRowIndex >= 0 ? rows[headerRowIndex] : [];
 
   rows.forEach((row, rowIndex) => {
-    const rowText = row.filter(Boolean).join(" ");
-    const description = getBestDescriptionFromTexts(row);
+    if (rowIndex === headerRowIndex) return;
+    const rowContext = buildRowContext(row, headers);
+    const rowText = rowContext.rowText || row.filter(Boolean).join(" ");
+    const description = rowContext.description || getBestDescriptionFromTexts(row);
     if (!rowText.trim()) return;
     reviewed += 1;
 
@@ -141,23 +147,26 @@ async function reviewExportedRows(ruleSets, rows) {
     const matchesAnySelectedRuleSet = ruleSets.some((ruleSet) =>
       window.AutoSheetReviewRules.valueMatchesRuleSet(value, ruleSet)
     );
+    const needsTeamReview = matchesAnySelectedRuleSet &&
+      window.AutoSheetReviewRules.valueNeedsTeamReview?.(value, ruleSets);
 
-    if (matchesAnySelectedRuleSet && isDuplicate) {
-      duplicateWarnings += 1;
-      duplicateRowNumbers.push(rowIndex + 1);
+    if (matchesAnySelectedRuleSet && (isDuplicate || needsTeamReview)) {
+      if (isDuplicate) duplicateWarnings += 1;
+      if (needsTeamReview) teamReviewWarnings += 1;
+      warningRowNumbers.push(rowIndex + 1);
     } else if (matchesAnySelectedRuleSet) {
       accepted += 1;
       acceptedRowNumbers.push(rowIndex + 1);
     }
   });
 
-  const fillResult = await fillReviewedRows(acceptedRowNumbers, duplicateRowNumbers, rows);
+  const fillResult = await fillReviewedRows(acceptedRowNumbers, warningRowNumbers, rows);
   const filledRows = fillResult.filledRows;
   const fillError = fillResult.fillError;
   if (fillError) {
     showToast(`Fill color failed: ${fillError}`);
   }
-  return { reviewed, highlighted: accepted, duplicateWarnings, filledRows, fillError, acceptedRowNumbers, duplicateRowNumbers, ...sportSummary };
+  return { reviewed, highlighted: accepted, duplicateWarnings, teamReviewWarnings, filledRows, fillError, acceptedRowNumbers, warningRowNumbers, ...sportSummary };
 }
 
 function reviewVisibleRows(ruleSets) {
@@ -165,13 +174,18 @@ function reviewVisibleRows(ruleSets) {
 
   const cells = getVisibleCellsWithValues();
   const rows = groupCellsIntoRows(cells);
+  const visibleHeaderRowIndex = findHeaderRowIndex(rows.map((row) => row.map(({ text }) => text)));
+  const visibleHeaders = visibleHeaderRowIndex >= 0 ? rows[visibleHeaderRowIndex].map(({ text }) => text) : [];
   let reviewed = 0;
   let highlighted = 0;
   const sportSummary = createSportSummary();
 
-  rows.forEach((row) => {
-    const description = getBestDescriptionText(row);
-    const rowText = row.map(({ text }) => text).filter(Boolean).join(" ");
+  rows.forEach((row, rowIndex) => {
+    if (rowIndex === visibleHeaderRowIndex) return;
+    const rowTexts = row.map(({ text }) => text);
+    const rowContext = buildRowContext(rowTexts, visibleHeaders);
+    const description = rowContext.description || getBestDescriptionText(row);
+    const rowText = rowContext.rowText || rowTexts.filter(Boolean).join(" ");
     if (!description && !rowText) return;
     reviewed += 1;
 
@@ -180,11 +194,13 @@ function reviewVisibleRows(ruleSets) {
     const matchesAnySelectedRuleSet = ruleSets.some((ruleSet) =>
       window.AutoSheetReviewRules.valueMatchesRuleSet(value, ruleSet)
     );
+    const needsTeamReview = matchesAnySelectedRuleSet &&
+      window.AutoSheetReviewRules.valueNeedsTeamReview?.(value, ruleSets);
 
     if (matchesAnySelectedRuleSet) {
       row.forEach(({ cell, rect }) => {
-        cell.classList.add("auto-sheet-review-good-cell");
-        addOverlayHighlight(rect);
+        cell.classList.add(needsTeamReview ? "auto-sheet-review-warning-cell" : "auto-sheet-review-good-cell");
+        addOverlayHighlight(rect, needsTeamReview ? "warning" : "");
       });
       highlighted += 1;
     }
@@ -322,6 +338,9 @@ function clearHighlights() {
   document
     .querySelectorAll(".auto-sheet-review-good-cell")
     .forEach((node) => node.classList.remove("auto-sheet-review-good-cell"));
+  document
+    .querySelectorAll(".auto-sheet-review-warning-cell")
+    .forEach((node) => node.classList.remove("auto-sheet-review-warning-cell"));
   document.querySelector("#auto-sheet-review-overlay")?.remove();
   document.querySelector("#auto-sheet-review-toast")?.remove();
 }
@@ -474,11 +493,13 @@ function highlightVisibleRowsByRules(ruleSets) {
     const matchesAnySelectedRuleSet = ruleSets.some((ruleSet) =>
       window.AutoSheetReviewRules.valueMatchesRuleSet(value, ruleSet)
     );
+    const needsTeamReview = matchesAnySelectedRuleSet &&
+      window.AutoSheetReviewRules.valueNeedsTeamReview?.(value, ruleSets);
     if (!matchesAnySelectedRuleSet) return;
 
     row.forEach(({ cell, rect }) => {
-      cell.classList.add("auto-sheet-review-good-cell");
-      addOverlayHighlight(rect);
+      cell.classList.add(needsTeamReview ? "auto-sheet-review-warning-cell" : "auto-sheet-review-good-cell");
+      addOverlayHighlight(rect, needsTeamReview ? "warning" : "");
     });
     highlighted += 1;
   });
@@ -516,7 +537,121 @@ function getBestDescriptionText(row) {
 }
 
 function getBestDescriptionFromTexts(texts) {
-  return texts.filter(Boolean).sort((a, b) => descriptionScore(b) - descriptionScore(a))[0] || "";
+  const cleaned = texts.map((text) => String(text || "").trim()).filter(Boolean);
+  if (!cleaned.length) return "";
+
+  const composed = composeRowDescription(cleaned);
+  const bestSingle = cleaned.slice().sort((a, b) => descriptionScore(b) - descriptionScore(a))[0] || "";
+  return descriptionScore(composed) >= descriptionScore(bestSingle) ? composed : bestSingle;
+}
+
+function composeRowDescription(texts) {
+  const useful = texts.filter((text) => !isIgnorableDescriptionCell(text));
+  const hasNameLikeCell = useful.some((text) => /[A-Za-z]{2,}/.test(text) && !/^(PSA|BGS|SGC|CGC)\b/i.test(text));
+  if (!hasNameLikeCell) return "";
+  return useful
+    .map((text) => text.replace(/\s+/g, " ").trim())
+    .filter((text, index, list) => list.findIndex((item) => item.toLowerCase() === text.toLowerCase()) === index)
+    .join(" ");
+}
+
+function findHeaderRowIndex(rows) {
+  const candidates = rows.slice(0, 12);
+  let best = { index: -1, score: 0 };
+  candidates.forEach((row, index) => {
+    const semantics = row.map(headerSemantic).filter(Boolean);
+    const unique = new Set(semantics);
+    let score = unique.size;
+    if (unique.has("player")) score += 2;
+    if (unique.has("year")) score += 1;
+    if (unique.has("gradeCompany") || unique.has("grade")) score += 1;
+    if (unique.has("price")) score += 1;
+    if (score > best.score) best = { index, score };
+  });
+  return best.score >= 3 ? best.index : -1;
+}
+
+function buildRowContext(row, headers = []) {
+  if (!headers?.length) return { description: "", rowText: "" };
+
+  const fields = {};
+  const extras = [];
+  row.forEach((cell, index) => {
+    const value = String(cell || "").trim();
+    if (!value || /^(?:n\/a|na|none|null|-|--?)$/i.test(value)) return;
+    const semantic = headerSemantic(headers[index]);
+    if (semantic) {
+      fields[semantic] ||= [];
+      fields[semantic].push(value);
+    } else if (!isIgnorableDescriptionCell(value)) {
+      extras.push(value);
+    }
+  });
+
+  const gradeCompany = firstField(fields.gradeCompany);
+  const grade = firstField(fields.grade);
+  const gradeText = gradeCompany && grade
+    ? `${gradeCompany} ${grade}`
+    : gradeCompany || grade || "";
+  const descriptionParts = [
+    ...fieldList(fields.player),
+    ...fieldList(fields.year),
+    ...fieldList(fields.brand),
+    ...fieldList(fields.product),
+    ...fieldList(fields.parallel),
+    ...fieldList(fields.cardNumber),
+    gradeText,
+    ...fieldList(fields.numbering),
+    ...fieldList(fields.team),
+    ...fieldList(fields.sport),
+    ...extras
+  ].filter(Boolean);
+  const description = composeRowDescription(descriptionParts);
+  const rowText = [
+    description,
+    ...fieldList(fields.price),
+    ...fieldList(fields.cert)
+  ].filter(Boolean).join(" ");
+  return { description, rowText };
+}
+
+function headerSemantic(header) {
+  const value = String(header || "")
+    .toLowerCase()
+    .replace(/[#:_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!value) return "";
+  if (/\b(player|athlete|subject|name)\b/.test(value) && !/\b(team|set|product|brand|company)\b/.test(value)) return "player";
+  if (/^year$|\b(card year|season)\b/.test(value)) return "year";
+  if (/\b(brand|manufacturer|maker)\b/.test(value)) return "brand";
+  if (/\b(product|set|release|program|card set|series)\b/.test(value)) return "product";
+  if (/\b(parallel|variation|insert|subset|card type)\b/.test(value)) return "parallel";
+  if (/\b(grade company|grading company|grader|slab company|cert company)\b/.test(value)) return "gradeCompany";
+  if (/^grade$|\b(card grade|slab grade|numeric grade)\b/.test(value)) return "grade";
+  if (/\b(cert|certificate|certification|serial cert)\b/.test(value)) return "cert";
+  if (/\b(serial|numbering|numbered|print run)\b/.test(value)) return "numbering";
+  if (/\b(card number|card no)\b/.test(value)) return "cardNumber";
+  if (/\b(price|cost|value|ask|asking|buy|payout|comp)\b/.test(value)) return "price";
+  if (/^team$|\b(team name|club)\b/.test(value)) return "team";
+  if (/^sport$|\bleague\b/.test(value)) return "sport";
+  return "";
+}
+
+function fieldList(value) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
+}
+
+function firstField(value) {
+  return fieldList(value)[0] || "";
+}
+
+function isIgnorableDescriptionCell(text) {
+  const value = String(text || "").trim();
+  if (!value) return true;
+  if (/^(?:n\/a|na|none|null|-|--?)$/i.test(value)) return true;
+  if (/^\$?\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?$/.test(value) && !/\b(19|20)\d{2}\b/.test(value)) return true;
+  return false;
 }
 
 function descriptionScore(text) {
@@ -547,7 +682,12 @@ function addOverlayHighlight(rect, shape = "cell") {
   if (!isUsableCellRect(rect)) return;
   const overlay = ensureOverlay();
   const marker = document.createElement("div");
-  marker.className = `auto-sheet-review-overlay-cell auto-sheet-review-overlay-good auto-sheet-review-overlay-${shape}`;
+  const isWarning = shape === "warning";
+  marker.className = [
+    "auto-sheet-review-overlay-cell",
+    isWarning ? "auto-sheet-review-overlay-warning" : "auto-sheet-review-overlay-good",
+    `auto-sheet-review-overlay-${shape}`
+  ].join(" ");
   marker.style.left = `${Math.max(0, rect.left)}px`;
   marker.style.top = `${Math.max(0, rect.top)}px`;
   marker.style.width = `${rect.width}px`;
