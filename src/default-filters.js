@@ -49,12 +49,12 @@
       name: "PSA FILTER",
       rulesSource: "none",
       sheetRulesUrl: "",
-      defaultVersion: 1,
+      defaultVersion: 2,
       rules: [
         {
           sport: "",
           sportOther: "",
-          priceRanges: [{ min: "0", max: "" }],
+          priceRanges: [{ min: "", max: "" }],
           grades: {
             psa: { allowed: true, min: "1", max: "10" },
             bgs: { allowed: false, min: "", max: "" },

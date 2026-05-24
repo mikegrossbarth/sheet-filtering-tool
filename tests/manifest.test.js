@@ -44,5 +44,9 @@ assert.equal(defaultFilters.find((filter) => filter.name === "GRADED GRAILS FILT
 assert.equal(defaultFilters.find((filter) => filter.name === "GRADED GRAILS FILTER").rules.length, 0);
 assert.equal(defaultFilters.find((filter) => filter.name === "BGS FILTER").sheetRulesUrl, "");
 assert.equal(defaultFilters.find((filter) => filter.name === "PSA FILTER").sheetRulesUrl, "");
+assert.equal(
+  JSON.stringify(defaultFilters.find((filter) => filter.name === "PSA FILTER").rules[0].priceRanges),
+  JSON.stringify([{ min: "", max: "" }])
+);
 
 console.log("manifest tests passed");

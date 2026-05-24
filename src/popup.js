@@ -502,8 +502,26 @@ function filterMatchesBundledDefault(filter, defaultFilter) {
   if (source !== (defaultFilter.rulesSource || "none")) return false;
   if ((filter.sheetRulesUrl || "") !== (defaultFilter.sheetRulesUrl || "")) return false;
   if (syncedSourceStoresExternalRules(source)) return true;
+  if (isLegacyPsaDefaultMatch(filter, defaultFilter)) return true;
   return stableJson(normalizeRulesForComparison(filter.rules || [])) ===
     stableJson(normalizeRulesForComparison(defaultFilter.rules || []));
+}
+
+function isLegacyPsaDefaultMatch(filter, defaultFilter) {
+  if (defaultFilter.id !== "default_psa_filter") return false;
+  const rules = filter.rules || [];
+  if (rules.length !== 1) return false;
+  const rule = rules[0];
+  const grades = normalizeRulesForComparison([rule])[0]?.grades || {};
+  const onlyPsaAllowed = grades.psa?.allowed === true &&
+    grades.bgs?.allowed === false &&
+    grades.sgc?.allowed === false &&
+    grades.cgc?.allowed === false;
+  const psaRange = grades.psa?.min === "1" && grades.psa?.max === "10";
+  const noSport = !rule.sport && !rule.sportOther;
+  const ranges = rule.priceRanges || [];
+  const legacyZeroMin = ranges.length === 1 && String(ranges[0].min || "") === "0" && !String(ranges[0].max || "");
+  return onlyPsaAllowed && psaRange && noSport && legacyZeroMin;
 }
 
 function normalizeRulesForComparison(rules) {

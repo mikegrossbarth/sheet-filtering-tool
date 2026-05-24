@@ -572,6 +572,24 @@ Poke      $7k-10k        None         7            3+
 
 {
   const [custom] = engine.buildRuleSets("", ["custom"], [{
+    name: "PSA no price required",
+    rules: [{
+      priceRanges: [{ min: "0", max: "" }],
+      grades: {
+        psa: { allowed: true, min: "1", max: "10" },
+        bgs: { allowed: false, min: "", max: "" },
+        sgc: { allowed: false, min: "", max: "" },
+        cgc: { allowed: false, min: "", max: "" }
+      }
+    }]
+  }]);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2018 topps chrome judge batting refractor psa 10"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2011 hoops stephen curry bgs 9.5"), custom), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets("", ["custom"], [{
     name: "SGC only",
     rules: [{
       priceRanges: [{ min: "1", max: "100000" }],

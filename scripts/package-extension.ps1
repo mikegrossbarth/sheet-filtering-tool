@@ -8,6 +8,7 @@ $packagePath = Join-Path $dist $packageName
 $include = @(
   "manifest.json",
   "README.md",
+  "assets",
   "src"
 )
 

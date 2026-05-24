@@ -461,7 +461,11 @@
         min: toNumber(range.min),
         max: toNumber(range.max)
       }))
-      .filter((range) => range.min != null || range.max != null)
+      .filter((range) => {
+        if (range.min == null && range.max == null) return false;
+        if ((range.min == null || range.min <= 0) && range.max == null) return false;
+        return true;
+      })
       .map((range) => ({
         min: range.min ?? 0,
         max: range.max ?? Number.MAX_SAFE_INTEGER

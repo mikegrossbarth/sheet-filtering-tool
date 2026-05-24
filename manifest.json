@@ -3,6 +3,12 @@
   "name": "Sheet Filtering Tool",
   "description": "Reviews open Google Sheets against saved custom filtering rules.",
   "version": "0.1.0",
+  "icons": {
+    "16": "assets/store/icon-16.png",
+    "32": "assets/store/icon-32.png",
+    "48": "assets/store/icon-48.png",
+    "128": "assets/store/icon-128.png"
+  },
   "permissions": ["activeTab", "identity", "storage", "tabs"],
   "host_permissions": [
     "https://docs.google.com/*",
@@ -20,7 +26,13 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Sheet Filtering Tool"
+    "default_title": "Sheet Filtering Tool",
+    "default_icon": {
+      "16": "assets/store/icon-16.png",
+      "32": "assets/store/icon-32.png",
+      "48": "assets/store/icon-48.png",
+      "128": "assets/store/icon-128.png"
+    }
   },
   "content_scripts": [
     {

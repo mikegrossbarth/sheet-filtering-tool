@@ -252,7 +252,7 @@ async function fetchActiveSheetRows() {
     throw new Error(result?.error || "CSV export failed");
   }
   const csv = result.text || "";
-  return parseCsv(csv).filter((row) => row.some((value) => String(value || "").trim()));
+  return parseCsv(csv);
 }
 
 function getActiveSheetCsvExportUrls() {
