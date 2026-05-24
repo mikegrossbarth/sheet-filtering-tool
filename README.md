@@ -1,105 +1,123 @@
 # Sheet Filtering Tool
 
-Chrome extension for reviewing an open Google Sheet against saved buying/filter rules.
+Chrome extension for reviewing an open Google Sheet against saved card buying/filter rules.
 
-## Best Way To Share It
+The extension reads rows from the active Google Sheet, compares each row against the selected saved filter, and fills accepted rows green. Duplicate accepted rows are marked yellow.
 
-For other people to use this without creating their own keys, OAuth clients, or Google Cloud projects, publish this extension through the Chrome Web Store.
+## Install From GitHub
 
-That gives users the simple path:
+1. Download this repository from GitHub.
+   - Click `Code`.
+   - Click `Download ZIP`.
+   - Unzip the folder.
 
-1. Install Sheet Filtering Tool from the Chrome Web Store.
-2. Open a Google Sheet.
-3. Select or create a saved filter.
-4. Link a Google Keep note or Google Sheets rules file if needed.
-5. Click Review Sheet.
-
-Users should not need to create API keys or edit code. The extension includes the OAuth client in `manifest.json`; once the Chrome Web Store item and Google OAuth consent screen are approved, users only grant the extension access when Chrome asks for it.
-
-## Important Google Limitation
-
-There is no practical way to permanently fill private Google Sheets cells green/yellow without Google authorization. The extension currently uses the Google Sheets API for the actual fill color update, so Chrome/Google must authorize that access.
-
-What we can avoid:
-
-- every user making their own Google Cloud project
-- every user pasting a client ID
-- every user loading a local developer build
-- unverified-app warnings after the production OAuth app is verified
-
-What we cannot avoid for real sheet editing:
-
-- the user must be signed into Google
-- the user must install the extension
-- the user may need to approve the extension's Sheets permission once
-
-## What It Does
-
-- Appears only on Google Sheets pages.
-- Opens as a draggable, minimizable native overlay.
-- Lets users create, save, edit, delete, and select saved filters.
-- Ships with bundled default filters for Arena Club, BGS, Graded Grails, and PSA.
-- Supports Google Keep-backed and Google Sheets-backed rules.
-- Refreshes linked Keep/Sheet rules every time Review Sheet runs.
-- Shows a compact synced-source status and parsed rule count.
-- Reviews every row from the active sheet export.
-- Fills accepted rows green.
-- Fills duplicate accepted rows yellow.
-- Clears previous extension-applied fills before each review.
-
-## Rule Sources
-
-Saved filters can use:
-
-- manual custom filter rules
-- a Google Keep rules note
-- a Google Sheets rules workbook
-
-Keep and Sheets sources are treated as live rule files. Review Sheet refreshes the selected source before parsing rules.
-
-## Local Development Install
-
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click Load unpacked.
-4. Select this folder:
+2. Open Chrome and go to:
 
 ```text
-C:\Users\User\Documents\Codex\2026-05-21\automatic-sheet-review\Sheet Filtering Tool
+chrome://extensions
 ```
 
-5. Open a Google Sheet.
-6. The Sheet Review panel appears on the sheet.
+3. Turn on `Developer mode`.
 
-Local developer installs are for testing only. For normal users, use the Chrome Web Store route.
+4. Click `Load unpacked`.
 
-## Checks
+5. Select the unzipped `Sheet Filtering Tool` folder.
+
+The selected folder must contain `manifest.json`.
+
+## Open The Tool
+
+1. Open a Google Sheet.
+2. Click the Sheet Filtering Tool extension icon in Chrome.
+3. The tool opens as a movable panel on the sheet.
+
+The panel does not open automatically on every sheet. It only opens when you click the extension icon.
+
+## Default Filters
+
+New installs include five default filters:
+
+- `ARENA CLUB FILTER`
+- `BGS FILTER`
+- `COURT YARD FILTER`
+- `GRADED GRAILS FILTER`
+- `PSA FILTER`
+
+The external-source defaults are templates only:
+
+- `ARENA CLUB FILTER` uses a Google Sheets rules file, but ships with no sheet URL.
+- `GRADED GRAILS FILTER` uses a Google Sheets rules file, but ships with no sheet URL.
+- `COURT YARD FILTER` uses Google Keep, but ships with no Keep note link.
+
+Each user must connect their own Google Keep note or Google Sheets rules file. No private rule files are bundled.
+
+`BGS FILTER` and `PSA FILTER` are native extension filters and can be used without linking an external rules file.
+
+## Connect A Google Keep Filter
+
+1. Open a Google Sheet.
+2. Click the extension icon.
+3. Select the Keep-backed filter, such as `COURT YARD FILTER`.
+4. Click `Make Custom Filter`.
+5. Set `Sync Rules Source` to `Google Keep rules file`.
+6. Click `Open Keep Rule Note`.
+7. Open the Keep note that contains the rules.
+8. Click `Sync Rules` in the small Sheet Filtering Tool panel on the Keep page.
+9. Return to the Google Sheet.
+10. Save the filter.
+
+After that, `Review Sheet` will re-check that linked Keep note before reviewing. If the Keep note cannot be read completely, the review stops before coloring rows.
+
+## Connect A Google Sheets Rules File
+
+1. Open a Google Sheet.
+2. Click the extension icon.
+3. Select or create a Sheet-backed filter.
+4. Click `Make Custom Filter`.
+5. Set `Sync Rules Source` to `Google Sheets rules file`.
+6. Paste the rules spreadsheet URL.
+7. Save the filter.
+
+Each time `Review Sheet` runs, the extension rereads the linked rules spreadsheet.
+
+## Review A Sheet
+
+1. Open the sheet you want to review.
+2. Click the extension icon if the panel is closed.
+3. Select one saved filter.
+4. Click `Review Sheet`.
+
+The extension will:
+
+- clear prior colors applied by the extension
+- refresh the linked Keep note or rules spreadsheet if the filter uses one
+- parse card rows from the active sheet
+- fill accepted rows green
+- fill duplicate accepted rows yellow
+
+## Permissions
+
+The extension uses Google Sheets access so it can apply actual fill colors to the sheet. Users do not need to create API keys or edit code.
+
+When installed as an unpacked developer extension, Google OAuth setup may still depend on the configured OAuth client and tester access. For general distribution, publish through the Chrome Web Store with a verified OAuth consent screen.
+
+## Developer Commands
+
+Run checks:
 
 ```powershell
 npm run check
 ```
 
-## Package For Chrome Web Store
+Build the Chrome upload ZIP:
 
 ```powershell
 npm run package
 ```
 
-The ZIP will be created in `dist/`.
-
-## Production Setup Checklist
-
-1. Create or use the production Chrome Web Store listing.
-2. Make sure the extension ID in Chrome Web Store matches the OAuth client configuration in Google Cloud.
-3. Configure the OAuth consent screen for the production project.
-4. Add the Google Sheets API scope used by the extension:
+The ZIP is created at:
 
 ```text
-https://www.googleapis.com/auth/spreadsheets
+dist/sheet-filtering-tool.zip
 ```
 
-5. Submit the OAuth app for Google verification if required.
-6. Upload the packaged ZIP to the Chrome Web Store.
-7. Publish to trusted testers or public users.
-
-After this, users install from the store and do not need keys, client IDs, or local setup.

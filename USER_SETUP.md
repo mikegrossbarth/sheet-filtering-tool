@@ -11,52 +11,66 @@ This guide is for people who just want to use the extension.
 
 ## Install The Extension
 
-Use the Chrome Web Store install link provided by the Sheet Filtering Tool owner.
+Use either the Chrome Web Store install link provided by the extension owner or install the unpacked extension from the project folder.
 
-After installing, Chrome may ask you to approve permissions for Google Sheets. Approve the permissions so the extension can read the open sheet and apply fill colors.
+For an unpacked install:
+
+1. Open `chrome://extensions`.
+2. Enable `Developer mode`.
+3. Click `Load unpacked`.
+4. Select the folder that contains `manifest.json`.
+
+Chrome may ask you to approve permissions for Google Sheets. Approve the permissions so the extension can read the open sheet and apply fill colors.
 
 ## Open The Tool
 
 1. Open the Google Sheet you want to review.
-2. The Sheet Review panel should appear on the right side of the sheet.
-3. If it is closed or minimized, click the Sheet Filtering Tool extension icon in Chrome.
+2. Click the Sheet Filtering Tool extension icon in Chrome.
+3. The panel opens on the sheet.
 
-The tool only appears on Google Sheets pages.
+The tool only runs on Google Sheets pages and does not open automatically on every sheet.
 
-## Select A Filter
+## Default Filters
 
-1. Use the Filter Selection dropdown.
-2. Choose the saved filter you want to run. New installs include default filters for Arena Club, BGS, Graded Grails, and PSA.
-3. If the filter uses Google Keep or a Google Sheets rules file, the tool will refresh those rules when you press Review Sheet.
+New installs include:
 
-The tool will show how many rules were found from the connected source.
+- `ARENA CLUB FILTER`
+- `BGS FILTER`
+- `COURT YARD FILTER`
+- `GRADED GRAILS FILTER`
+- `PSA FILTER`
+
+The Arena Club, Court Yard, and Graded Grails filters are templates. Users must connect their own Google Keep note or Google Sheets rules file before using those filters.
 
 ## Use Google Keep Rules
 
-1. Check Make Custom Filter.
-2. Set Sync Rules Source to Google Keep rules file.
-3. Click Open Keep Rule Note.
-4. Open the note that contains the rules.
-5. Click Sync Rules in the Keep page panel if needed.
-6. Return to the Google Sheet.
-7. Save the filter.
+1. Select a Keep-backed filter, such as `COURT YARD FILTER`.
+2. Check `Make Custom Filter`.
+3. Set `Sync Rules Source` to `Google Keep rules file`.
+4. Click `Open Keep Rule Note`.
+5. Open the note that contains your rules.
+6. Click `Sync Rules` in the Keep page panel.
+7. Return to the Google Sheet.
+8. Save the filter.
 
-After that, each time you run Review Sheet with that saved filter, the extension rechecks the open Keep note for updated rules.
+After that, each time you run `Review Sheet` with that saved filter, the extension rechecks the linked Keep note for updated rules.
 
 ## Use Google Sheets Rules
 
-1. Check Make Custom Filter.
-2. Set Sync Rules Source to Google Sheets rules file.
-3. Paste the Google Sheets rules file URL.
-4. Save the filter.
+1. Select or create a Sheet-backed filter.
+2. Check `Make Custom Filter`.
+3. Set `Sync Rules Source` to `Google Sheets rules file`.
+4. Paste the Google Sheets rules file URL.
+5. Save the filter.
 
-Each time you run Review Sheet with that saved filter, the extension rereads the linked rules spreadsheet.
+Each time you run `Review Sheet` with that saved filter, the extension rereads the linked rules spreadsheet.
 
 ## Review A Sheet
 
 1. Open the sheet tab you want to review.
-2. Select a saved filter.
-3. Click Review Sheet.
+2. Click the extension icon if the panel is closed.
+3. Select a saved filter.
+4. Click `Review Sheet`.
 
 The extension will:
 
@@ -80,4 +94,5 @@ If the tool says `0 rules found`, the connected Keep note or rules sheet was rea
 
 ## Normal Permissions
 
-The extension needs permission to work with Google Sheets so it can apply row fill colors. Users do not need API keys, OAuth client IDs, or developer setup when installing the published version.
+The extension needs permission to work with Google Sheets so it can apply row fill colors. Users should not need API keys, OAuth client IDs, or code changes when using a properly published version.
+
