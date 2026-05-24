@@ -534,6 +534,26 @@ Poke      $7k-10k        None         7            3+
 
 {
   const [custom] = engine.buildRuleSets("", ["custom"], [{
+    name: "Multi-sport slabs",
+    rules: [{
+      sports: ["basketball", "football"],
+      priceRanges: [{ min: "", max: "" }],
+      grades: {
+        psa: { allowed: true, min: "", max: "" },
+        bgs: { allowed: true, min: "", max: "" },
+        sgc: { allowed: true, min: "", max: "" },
+        cgc: { allowed: true, min: "", max: "" }
+      }
+    }]
+  }]);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2015 donruss nikola jokic psa 10", "$700"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2018 origins josh allen patch auto /25", "$1255"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2018 topps chrome judge batting refractor psa 10", "$130"), custom), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets("", ["custom"], [{
     name: "No BGS",
     rules: [{
       sport: "football",

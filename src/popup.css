@@ -272,6 +272,32 @@ footer {
   gap: 6px;
 }
 
+.sport-checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sport-checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #10141c;
+  color: #e7ebf4;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sport-checkbox-option input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
 .price-range {
   grid-template-columns: 1fr 1fr 78px;
 }

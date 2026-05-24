@@ -358,12 +358,15 @@
     if (!Array.isArray(rules)) return [];
     return rules
       .map((rule) => {
-        const sport = selectedRuleValue(rule.sport, rule.sportOther);
+        const sports = selectedRuleValues(rule.sports, rule.sport, rule.sportOther)
+          .map((sport) => canonicalCategory(sport))
+          .filter(Boolean);
+        const sport = sports[0] || "";
         const matcher = selectedRuleValue(rule.matcher, "");
         const priceRanges = normalizePriceRanges(rule.priceRanges);
         const grades = normalizeGrades(rule.grades);
-        const configured = Boolean(sport || matcher || priceRanges.length || Object.keys(grades).length);
-        return configured ? { sport, matcher, priceRanges, grades } : null;
+        const configured = Boolean(sports.length || matcher || priceRanges.length || Object.keys(grades).length);
+        return configured ? { sport, sports, matcher, priceRanges, grades } : null;
       })
       .filter(Boolean);
   }
@@ -492,7 +495,8 @@
 
   function customRuleMatchesValue(rule, value, ruleSet) {
     const haystack = cleanRuleText(value.text);
-    if (rule.sport && !sportMatchesValue(rule.sport, value, haystack)) {
+    const sports = Array.isArray(rule.sports) && rule.sports.length ? rule.sports : (rule.sport ? [rule.sport] : []);
+    if (sports.length && !sports.some((sport) => sportMatchesValue(sport, value, haystack))) {
       return false;
     }
     if (rule.matcher && !matcherMatchesValue(rule.matcher, value, haystack, ruleSetAllowsTeamChecks(ruleSet))) {
@@ -527,6 +531,13 @@
     if (value === "custom") return String(otherValue || "").trim();
     if (cleanRuleText(value) === "any sport") return "";
     return String(value || "").trim();
+  }
+
+  function selectedRuleValues(values, legacyValue, otherValue) {
+    const rawValues = Array.isArray(values) && values.length ? values : [legacyValue];
+    return rawValues
+      .map((value) => selectedRuleValue(value, otherValue))
+      .filter(Boolean);
   }
 
   function parseRangeRules(lines) {

@@ -526,6 +526,7 @@ function isLegacyPsaDefaultMatch(filter, defaultFilter) {
 
 function normalizeRulesForComparison(rules) {
   return rules.map((rule) => ({
+    sports: selectedSports(rule),
     sport: rule.sport || "",
     sportOther: rule.sportOther || "",
     priceRanges: (rule.priceRanges || []).map((range) => ({
@@ -570,10 +571,15 @@ function buildRuleHtml(rule, ruleIndex) {
     </div>
 
     <label>Sport</label>
-    <select data-field="sport">
-      ${sportOptions(rule.sport)}
-    </select>
-    <input class="custom-other" data-field="sportOther" type="text" placeholder="Enter sport" value="${escapeHtml(rule.sportOther || "")}" ${rule.sport === "custom" ? "" : "hidden"}>
+    <div class="sport-checkbox-grid">
+      ${sportOptions(rule).map(({ value, label, checked }) => `
+        <label class="sport-checkbox-option">
+          <input data-field="sportChoice" data-sport-value="${escapeHtml(value)}" type="checkbox" ${checked ? "checked" : ""}>
+          <span>${escapeHtml(label)}</span>
+        </label>
+      `).join("")}
+    </div>
+    <input class="custom-other" data-field="sportOther" type="text" placeholder="Enter sport" value="${escapeHtml(rule.sportOther || "")}" ${selectedSports(rule).includes("custom") ? "" : "hidden"}>
 
     <label>Price Ranges</label>
     <div class="price-ranges">
@@ -629,6 +635,18 @@ function updateDraftFromInput(event, ruleIndex) {
 
   if (field === "sport") {
     rule.sport = event.target.value;
+    renderFilterRules();
+  } else if (field === "sportChoice") {
+    const value = event.target.dataset.sportValue;
+    const sports = new Set(selectedSports(rule));
+    if (event.target.checked) {
+      sports.add(value);
+    } else {
+      sports.delete(value);
+    }
+    rule.sports = Array.from(sports);
+    rule.sport = rule.sports[0] || "";
+    if (!rule.sports.includes("custom")) rule.sportOther = "";
     renderFilterRules();
   } else if (field === "sportOther") {
     rule.sportOther = event.target.value;
@@ -1024,9 +1042,9 @@ function activeKeepNoteUrl() {
   return selectedSavedFilter()?.keepNote?.url || state.draftFilter?.keepNote?.url || "";
 }
 
-function sportOptions(selected) {
+function sportOptions(rule) {
+  const selected = new Set(selectedSports(rule));
   const options = [
-    ["", "Any sport"],
     ["baseball", "Baseball"],
     ["basketball", "Basketball"],
     ["football", "Football"],
@@ -1036,7 +1054,7 @@ function sportOptions(selected) {
     ["one piece", "One Piece"],
     ["custom", "Other..."]
   ];
-  return options.map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("");
+  return options.map(([value, label]) => ({ value, label, checked: selected.has(value) }));
 }
 
 function gradeOptions(selected, label) {
@@ -1050,6 +1068,7 @@ function createEmptyRule() {
   return {
     id: createId(),
     sport: "",
+    sports: [],
     sportOther: "",
     priceRanges: [{ min: "", max: "" }],
     grades: {
@@ -1084,9 +1103,11 @@ function syncedSourceStoresExternalRules(rulesSource) {
 }
 
 function normalizeRule(rule) {
+  const sports = selectedSports(rule);
   return {
     id: rule.id || createId(),
-    sport: rule.sport || "",
+    sport: sports[0] || "",
+    sports,
     sportOther: rule.sportOther || "",
     priceRanges: Array.isArray(rule.priceRanges) && rule.priceRanges.length ? rule.priceRanges : [{ min: "", max: "" }],
     grades: {
@@ -1100,8 +1121,8 @@ function normalizeRule(rule) {
 
 function summarizeRule(rule) {
   const parts = [];
-  const sport = rule.sport === "custom" ? rule.sportOther : rule.sport;
-  if (sport) parts.push(sport);
+  const sports = selectedSports(rule).map((sport) => sport === "custom" ? rule.sportOther : sport).filter(Boolean);
+  if (sports.length) parts.push(sports.join(", "));
   const priceRanges = (rule.priceRanges || [])
     .filter((range) => range.min || range.max)
     .map((range) => `${range.min || "0"}-${range.max || "any"}`);
@@ -1113,7 +1134,7 @@ function summarizeRule(rule) {
 
 function isRuleConfigured(rule) {
   return Boolean(
-    selectedRuleText(rule.sport, rule.sportOther) ||
+    selectedSports(rule).some((sport) => selectedRuleText(sport, rule.sportOther)) ||
     (rule.priceRanges || []).some((range) => range.min || range.max) ||
     GRADE_COMPANIES.some((company) => {
       const grade = rule.grades?.[company] || {};
@@ -1124,6 +1145,14 @@ function isRuleConfigured(rule) {
 
 function selectedRuleText(value, otherValue) {
   return value === "custom" ? String(otherValue || "").trim() : String(value || "").trim();
+}
+
+function selectedSports(rule) {
+  if (Array.isArray(rule?.sports) && rule.sports.length) {
+    return rule.sports.map((sport) => String(sport || "").trim()).filter(Boolean);
+  }
+  const sport = String(rule?.sport || "").trim();
+  return sport ? [sport] : [];
 }
 
 function createId() {
