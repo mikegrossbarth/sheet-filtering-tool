@@ -1,2 +1,4 @@
 dist/
 scripts/.player-team-cache.json
+*.csv
+*.CSV
