@@ -1243,9 +1243,22 @@ async function refreshActiveTabState() {
 }
 
 async function getActiveSheetTab() {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const tab = tabs[0] || (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
-  return tab?.url?.startsWith("https://docs.google.com/spreadsheets/") ? tab : null;
+  const activeTabs = [
+    ...(await chrome.tabs.query({ active: true, currentWindow: true })),
+    ...(await chrome.tabs.query({ active: true, lastFocusedWindow: true }))
+  ];
+  const activeSheet = activeTabs.find(isGoogleSheetTab);
+  if (activeSheet) return activeSheet;
+
+  const visibleTabs = [
+    ...(await chrome.tabs.query({ currentWindow: true })),
+    ...(await chrome.tabs.query({ lastFocusedWindow: true }))
+  ];
+  return visibleTabs.find(isGoogleSheetTab) || null;
+}
+
+function isGoogleSheetTab(tab) {
+  return tab?.id && tab.url?.startsWith("https://docs.google.com/spreadsheets/");
 }
 
 chrome.tabs.onActivated?.addListener(() => {

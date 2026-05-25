@@ -75,7 +75,9 @@
     "topps", "bowman", "chrome", "sapphire", "finest", "heritage", "stadium", "club",
     "panini", "donruss", "optic", "prizm", "select", "mosaic", "contenders", "national",
     "treasures", "flawless", "immaculate", "obsidian", "revolution", "absolute", "elite",
-    "upper", "deck", "sp", "young", "guns", "pokemon", "one", "piece"
+    "upper", "deck", "sp", "young", "guns", "pokemon", "one", "piece",
+    "orange", "purple", "blue", "red", "green", "gold", "silver", "black", "white",
+    "pink", "aqua", "teal", "bronze", "vinyl", "wave", "shimmer", "choice", "auto"
   ]);
 
   Object.entries(window.AutoSheetReviewPlayerSports?.players || {}).forEach(([player, value]) => {
@@ -681,7 +683,7 @@
       return false;
     }
 
-    if (ruleSet.sports.length && !ruleSet.sports.some((sport) => aliasesFor(sport).some((alias) => haystack.includes(cleanRuleText(alias))))) {
+    if (ruleSet.sports.length && !ruleSet.sports.some((sport) => aliasesFor(sport).some((alias) => textContainsCleanTerm(haystack, alias)))) {
       return false;
     }
 
@@ -730,7 +732,7 @@
     const rawText = String(text || "");
     const priceMatch = rawText.match(/\$\s*(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d{2})?\b/);
     const numericCellMatch = rawText.trim().match(/^(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d{1,2})?$/);
-    const gradeMatch = rawText.match(/\b(PSA|BGS|SGC|CGC)\b\D{0,24}\b(10|9\.5|9|8\.5|8|7|6|5|4|3|2|1)\b/i);
+    const gradeMatch = rawText.match(/\b(PSA|BGS|SGC|CGC)\s*\D{0,24}?\s*(10|9\.5|9|8\.5|8|7|6|5|4|3|2|1)\b/i);
     const isUngraded = !gradeMatch && UNGRADED_PATTERN.test(rawText);
     return {
       text: rawText,
@@ -882,7 +884,7 @@
   function inferSport(raw, playerName) {
     const haystack = cleanRuleText(raw);
     for (const [sport, aliases] of Object.entries(CATEGORY_ALIASES)) {
-      if (aliases.some((alias) => haystack.includes(cleanRuleText(alias)))) return sport;
+      if (aliases.some((alias) => textContainsCleanTerm(haystack, alias))) return sport;
     }
     const playerKey = cleanRuleText(playerName || "");
     return PLAYER_SPORT_HINTS[playerKey] || null;
@@ -1142,7 +1144,16 @@
       "wilson",
       "martinez",
       "robinson",
-      "jackson"
+      "jackson",
+      "orange",
+      "purple",
+      "blue",
+      "red",
+      "gold",
+      "silver",
+      "black",
+      "white",
+      "green"
     ]).has(token);
   }
 
@@ -1181,11 +1192,18 @@
     const cleaned = cleanRuleText(matcher);
     const aliases = aliasesFor(cleaned);
     if (aliases.length > 1) {
-      return aliases.some((alias) => haystack.includes(cleanRuleText(alias)));
+      return aliases.some((alias) => textContainsCleanTerm(haystack, alias));
     }
 
     const terms = cleaned.split(/\s+/).filter((term) => term.length >= 2);
-    return terms.length ? terms.every((term) => haystack.includes(term)) : true;
+    return terms.length ? terms.every((term) => textContainsCleanTerm(haystack, term)) : true;
+  }
+
+  function textContainsCleanTerm(haystack, term) {
+    const cleanedHaystack = ` ${cleanRuleText(haystack)} `;
+    const cleanedTerm = cleanRuleText(term);
+    if (!cleanedTerm) return false;
+    return new RegExp(`\\s${escapeRegExp(cleanedTerm)}s?(?=\\s)`).test(cleanedHaystack);
   }
 
   function parseRuleNumber(value) {

@@ -670,6 +670,18 @@ Poke      $7k-10k        None         7            3+
   assert.equal(engine.parseCardRow("2024 panini prizm lamelo ball unsealed", "$1800").isUngraded, true);
   assert.equal(engine.parseCardRow("2024 panini prizm lamelo ball unslabbed", "$1800").isUngraded, true);
   assert.equal(engine.parseCardRow("2024 panini prizm lamelo ball PSA 10 raw note", "$1800").isUngraded, false);
+  assert.deepEqual(
+    ["PSA10", "BGS9.5", "SGC10", "CGC10"].map((gradeText) => {
+      const parsed = engine.parseCardRow(`2024 panini prizm lamelo ball ${gradeText}`, "$1800");
+      return [parsed.gradeCompany, parsed.grade, parsed.isUngraded];
+    }),
+    [
+      ["PSA", 10, false],
+      ["BGS", 9.5, false],
+      ["SGC", 10, false],
+      ["CGC", 10, false]
+    ]
+  );
 }
 
 {
@@ -683,6 +695,33 @@ block: Raw or Sealed`, ["custom"], []);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball unslabbed", "$1800"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2020 immaculate stephen curry auto /25", "$898"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball psa 10", "$1800"), custom), true);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+Basketball $10-$299
+Basketball $2000-$5000
+block: Raw or Sealed`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 prizm shai gilgeous alexander auto psa 9", "$150"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2020 immaculate stephen curry auto /25", "$2200"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("keyonte george 2024 panini one gold psa10", "$180"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 prizm black gold shimmer matas buzelis /10 psa 10", "$2500"), custom), true);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+Football $10-$299
+Hockey $10-$1000`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("JEREMY SHOCKEY 2025 NATIONAL TREASURES GLADIATORS AUTO PSA 10", "$225"), custom), false);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+Football $10-$299`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("VENUS WILLIAMS 2024 TOPPS ORANGE AUTO /25 PSA 9", "$150"), custom), false);
 }
 
 {

@@ -499,9 +499,6 @@ function synthesizeRulesFromSheetValues(title, values, context = {}) {
 
   const specialized = synthesizeArenaClubRules(values, context);
   if (specialized.length) return specialized;
-  if (/parametersranges|parameters ranges/i.test(cleanRuleLabel(title)) && isArenaClubParametersSheet(values)) {
-    return [];
-  }
 
   const rules = [];
   const titleHint = cleanRuleText(title);
@@ -721,10 +718,6 @@ function synthesizeArenaClubRules(values, context = {}) {
     });
     rules.push(...synthesizeDuplicateWarningRules(values, headerRowIndex));
     return [...new Set(rules)];
-  }
-
-  if (isArenaClubParametersSheet(values)) {
-    return [];
   }
 
   values.forEach((row) => {

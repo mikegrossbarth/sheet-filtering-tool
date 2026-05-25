@@ -91,6 +91,6 @@ const arenaClubSportFallbackRules = context.synthesizeRulesFromSheetValues("Para
 
 assert.deepEqual(payoutRules, []);
 assert.deepEqual(compingRules, []);
-assert.deepEqual(arenaClubSportFallbackRules, []);
+assert.deepEqual(arenaClubSportFallbackRules, ["Basketball $10-299", "Basketball $2000-5000"]);
 
 console.log("background rule tests passed");
