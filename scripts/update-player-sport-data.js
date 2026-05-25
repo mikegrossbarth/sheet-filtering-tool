@@ -51,6 +51,12 @@ const SOURCES = [
     name: "Sportsnet NHL players / NHL active rosters",
     url: "https://www.sportsnet.ca/hockey/nhl/players/",
     load: loadNhlActivePlayers
+  },
+  {
+    sport: "soccer",
+    name: "Transfermarkt Premier League scorer list",
+    url: "https://www.transfermarkt.us/premier-league/scorerliste/wettbewerb/GB1/saison_id/2025",
+    load: loadTransfermarktPremierLeagueScorers
   }
 ];
 
@@ -991,6 +997,47 @@ async function fetchText(url) {
   }
 
   return await response.text();
+}
+
+async function loadTransfermarktPremierLeagueScorers() {
+  const baseUrl = "https://www.transfermarkt.us/premier-league/scorerliste/wettbewerb/GB1/saison_id/2025";
+  const names = new Set();
+  let emptyPages = 0;
+
+  for (let page = 1; page <= 10; page += 1) {
+    const url = page === 1 ? baseUrl : `${baseUrl}/page/${page}`;
+    const pageNames = extractTransfermarktScorerNames(await fetchText(url));
+    pageNames.forEach((name) => names.add(name));
+    if (!pageNames.length) {
+      emptyPages += 1;
+      if (emptyPages >= 2) break;
+    } else {
+      emptyPages = 0;
+    }
+  }
+
+  if (names.size < 25) {
+    throw new Error(`Transfermarkt scorer scraper found only ${names.size} player names`);
+  }
+
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+function extractTransfermarktScorerNames(html) {
+  const tableSection = String(html || "")
+    .split(/Latest market value updates/i)[0]
+    .split(/#\s*PlayerClubNat\.Age|Scorer list Premier League/i)
+    .pop() || "";
+  const names = new Set();
+  const linkPattern = /<a\b[^>]*href=["'][^"']+\/profil\/spieler\/\d+[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+
+  while ((match = linkPattern.exec(tableSection))) {
+    const name = decodeHtml(stripTags(match[1])).replace(/\s+/g, " ").trim();
+    if (isPlayerName(name)) names.add(name);
+  }
+
+  return [...names].sort((a, b) => a.localeCompare(b));
 }
 
 function extractNbaDirectoryPlayers(html) {
