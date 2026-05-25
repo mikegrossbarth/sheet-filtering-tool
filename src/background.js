@@ -378,6 +378,15 @@ async function readRulesWorkbook(url) {
     };
   }
 
+  const arenaClubWorkbook = await readArenaClubWorkbookIfPresent(sheets, token, spreadsheetId);
+  if (arenaClubWorkbook) {
+    return {
+      title: metadata.properties?.title || "Google Sheets rules file",
+      spreadsheetId,
+      ...arenaClubWorkbook
+    };
+  }
+
   const context = await buildWorkbookContext(sheets, token, spreadsheetId);
 
   for (const sheet of sheets) {
@@ -448,6 +457,69 @@ function looksLikeGradedGrailsWorkbook(sheetTitles) {
     sheetTitles.some((title) => /^floor$/i.test(title)) &&
     sheetTitles.some((title) => /^case hits$/i.test(title)) &&
     sheetTitles.some((title) => /^grails$/i.test(title));
+}
+
+async function readArenaClubWorkbookIfPresent(sheets, token, spreadsheetId) {
+  const parameterSheets = [];
+  const goatSheets = [];
+  const doNotBuySheets = [];
+
+  for (const sheet of sheets) {
+    const title = sheet.properties?.title || "";
+    if (isArenaClubParameterTitle(title)) parameterSheets.push(sheet);
+    if (/goats?/i.test(title)) goatSheets.push(sheet);
+    if (/do not buy|never buy/i.test(title)) doNotBuySheets.push(sheet);
+  }
+
+  if (!parameterSheets.length || (!goatSheets.length && !doNotBuySheets.length)) {
+    return null;
+  }
+
+  const tabSummaries = [];
+  const textBlocks = [];
+  const goatPlayers = new Set();
+
+  for (const sheet of goatSheets) {
+    const title = sheet.properties?.title || "GOATS";
+    const valuesPayload = await readSheetValues(spreadsheetId, title, token);
+    const values = valuesPayload.values || [];
+    extractPlayerNamesFromValues(values).forEach((player) => goatPlayers.add(player));
+    tabSummaries.push({ title, rules: goatPlayers.size, rows: values.length });
+  }
+
+  const arenaContext = { goatPlayers: [...goatPlayers] };
+  for (const sheet of parameterSheets) {
+    const title = sheet.properties?.title || "Parameters/Ranges";
+    const valuesPayload = await readSheetValues(spreadsheetId, title, token);
+    const values = valuesPayload.values || [];
+    const rules = synthesizeArenaClubRules(values, arenaContext);
+    tabSummaries.push({ title, rules: rules.length, rows: values.length });
+    if (rules.length) {
+      textBlocks.push(`# ${title}`, ...rules, "");
+    }
+  }
+
+  for (const sheet of doNotBuySheets) {
+    const title = sheet.properties?.title || "Do Not Buy";
+    const valuesPayload = await readSheetValues(spreadsheetId, title, token);
+    const values = valuesPayload.values || [];
+    const rules = synthesizeDoNotBuyRules(values);
+    tabSummaries.push({ title, rules: rules.length, rows: values.length });
+    if (rules.length) {
+      textBlocks.push(`# ${title}`, ...rules, "");
+    }
+  }
+
+  if (!textBlocks.length) return null;
+  return {
+    text: textBlocks.join("\n").trim(),
+    tabSummaries
+  };
+}
+
+function isArenaClubParameterTitle(title) {
+  const cleaned = cleanRuleLabel(title).toLowerCase();
+  return /parameters?/.test(cleaned) && /ranges?/.test(cleaned);
 }
 
 async function buildWorkbookContext(sheets, token, spreadsheetId) {
@@ -674,9 +746,9 @@ function synthesizeDoNotBuyRules(values) {
   const rules = [];
   values.flat().forEach((cell) => {
     const text = cleanRuleLabel(cell)
-      .replace(/^\d+\.?\s*/, "")
+      .replace(/^\d+[.)]\s*/, "")
       .trim();
-    if (!text || /never buy|players to|basketball|football|baseball|wnba|collegiate|vintage|currently avoiding|pausing\/limiting/i.test(text)) {
+    if (!text || isDoNotBuyHeading(text)) {
       return;
     }
 
@@ -690,6 +762,11 @@ function synthesizeDoNotBuyRules(values) {
     rules.push(`block: ${text}`);
   });
   return [...new Set(rules)];
+}
+
+function isDoNotBuyHeading(value) {
+  return /^(?:never buy|players to never buy|players to avoid|basketball|football|baseball|soccer|hockey|wnba|collegiate|vintage|currently avoiding(?: buying)?|pausing\/limiting|notes?)$/i
+    .test(String(value || "").trim());
 }
 
 function synthesizeArenaClubRules(values, context = {}) {

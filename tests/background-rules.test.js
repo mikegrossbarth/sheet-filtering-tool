@@ -54,6 +54,9 @@ const parametersRows = [
 ];
 
 const parameterRules = context.synthesizeRulesFromSheetValues("ParametersRanges", parametersRows, {});
+const goatExpandedParameterRules = context.synthesizeRulesFromSheetValues("ParametersRanges", parametersRows, {
+  goatPlayers: ["Stephen Curry", "Nikola Jokic"]
+});
 
 assert.ok(parameterRules.includes("Tom Brady $100-5000"));
 assert.ok(parameterRules.includes("Kobe Bryant $100-5000"));
@@ -61,6 +64,8 @@ assert.ok(parameterRules.includes("Kaboom $500-5000"));
 assert.ok(parameterRules.includes("Downtown $250-2000"));
 assert.ok(parameterRules.includes("duplicate-warning: Kaboom"));
 assert.ok(parameterRules.includes("duplicate-warning: Downtown"));
+assert.ok(goatExpandedParameterRules.includes("Stephen Curry $100-7500"));
+assert.ok(goatExpandedParameterRules.includes("Nikola Jokic $100-7500"));
 
 const payoutRows = [
   ["PAYOUTS"],
@@ -97,6 +102,13 @@ const combinedArenaClubRules = context.synthesizeRulesFromSheetValues("Parameter
   [null, null, null, "Price Ranges", `${dollar}2,000 - ${dollar}5,000`],
   ["NO FADED AUTOS", "NO FADED AUTOS", "(NO DUPLICATES)", "(NO DUPLICATES)"]
 ], {});
+const doNotBuyRules = context.synthesizeRulesFromSheetValues("Do Not Buy", [
+  ["Currently Avoiding Buying"],
+  ["Raw or Sealed"],
+  ["Michael Jordan 90s"],
+  ["2024 Optic and Donruss Football / Basketball Downtowns - Don't buy any right now."],
+  ["Albert Pujols cards over $300"]
+], {});
 
 assert.deepEqual(payoutRules, []);
 assert.deepEqual(compingRules, []);
@@ -106,5 +118,9 @@ assert.ok(combinedArenaClubRules.includes("LEBRON JAMES $300-4000"));
 assert.ok(combinedArenaClubRules.includes("Basketball $10-299"));
 assert.ok(combinedArenaClubRules.includes("Basketball $2000-5000"));
 assert.ok(combinedArenaClubRules.includes("duplicate-warning: Downtown"));
+assert.ok(doNotBuyRules.includes("block: Raw or Sealed"));
+assert.ok(doNotBuyRules.includes("block: Michael Jordan 90s"));
+assert.ok(doNotBuyRules.includes("block: 2024 Optic and Donruss Football / Basketball Downtowns - Don't buy any right now."));
+assert.ok(doNotBuyRules.includes("block: Albert Pujols over 300"));
 
 console.log("background rule tests passed");
