@@ -398,6 +398,18 @@ Football $2000-$5000`;
 
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2023 panini downtown patrick mahomes psa 10", "$1000"), custom), true);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2023 panini prizm patrick mahomes psa 10", "$1000"), custom), false);
+  assert.equal(engine.valueUsesDuplicateWarning(engine.parseCardRow("2023 panini downtown patrick mahomes psa 10", "$1000"), [custom]), false);
+  assert.equal(engine.valueUsesDuplicateWarning(engine.parseCardRow("2024 panini prizm patrick mahomes psa 10", "$1000"), [custom]), false);
+}
+
+{
+  const note = `[Custom]
+duplicate-warning: Downtown
+Football $10-$5000`;
+  const [custom] = engine.buildRuleSets(note, ["custom"], []);
+
+  assert.equal(engine.valueUsesDuplicateWarning(engine.parseCardRow("2023 panini downtown patrick mahomes psa 10", "$1000"), [custom]), true);
+  assert.equal(engine.valueUsesDuplicateWarning(engine.parseCardRow("2024 panini kaboom patrick mahomes psa 10", "$1000"), [custom]), false);
 }
 
 {

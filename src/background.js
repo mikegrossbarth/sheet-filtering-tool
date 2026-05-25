@@ -689,6 +689,11 @@ function synthesizeDoNotBuyRules(values) {
 
 function synthesizeArenaClubRules(values, context = {}) {
   const rules = [];
+  const tableRules = synthesizeArenaClubCategoryTableRules(values, context);
+  if (tableRules.length) {
+    return [...new Set(tableRules)];
+  }
+
   const headerRowIndex = values.findIndex((row) =>
     row.some((cell) => /brady|kobe|lebron|kaboom|downtown|goats?|color blast|manga/i.test(String(cell || "")))
   );
@@ -700,13 +705,14 @@ function synthesizeArenaClubRules(values, context = {}) {
       const range = parseSheetRange(rangeRow[index]);
       if (!range) return;
       expandHeaderLabel(header).forEach((label) => {
-        if (/^goats?$/i.test(label) && context.goatPlayers?.length) {
+        if (isGoatRuleLabel(label) && context.goatPlayers?.length) {
           context.goatPlayers.forEach((player) => rules.push(`${player} $${range.min}-${range.max}`));
         } else {
           rules.push(`${label} $${range.min}-${range.max}`);
         }
       });
     });
+    rules.push(...synthesizeDuplicateWarningRules(values, headerRowIndex));
   }
 
   values.forEach((row) => {
@@ -721,6 +727,42 @@ function synthesizeArenaClubRules(values, context = {}) {
   });
 
   return [...new Set(rules)];
+}
+
+function synthesizeArenaClubCategoryTableRules(values, context = {}) {
+  const rules = [];
+  values.forEach((row) => {
+    const label = normalizeRuleLabel(row[0]);
+    const range = parseSheetRange(row[1]);
+    if (!label || !range) return;
+    expandHeaderLabel(label).forEach((expandedLabel) => {
+      if (isGoatRuleLabel(expandedLabel) && context.goatPlayers?.length) {
+        context.goatPlayers.forEach((player) => rules.push(`${player} $${range.min}-${range.max}`));
+      } else {
+        rules.push(`${expandedLabel} $${range.min}-${range.max}`);
+      }
+    });
+  });
+  return rules;
+}
+
+function isGoatRuleLabel(value) {
+  return /\bgoats?\b/i.test(String(value || ""));
+}
+
+function synthesizeDuplicateWarningRules(values, headerRowIndex) {
+  const rules = [];
+  const headers = values[headerRowIndex] || [];
+  headers.forEach((header, columnIndex) => {
+    const hasNoDuplicatesNote = values
+      .slice(headerRowIndex + 1, headerRowIndex + 10)
+      .some((row) => /\bno duplicates?\b/i.test(String(row[columnIndex] || "")));
+    if (!hasNoDuplicatesNote) return;
+    expandHeaderLabel(header).forEach((label) => {
+      rules.push(`duplicate-warning: ${label}`);
+    });
+  });
+  return rules;
 }
 
 function extractPlayerNamesFromValues(values) {

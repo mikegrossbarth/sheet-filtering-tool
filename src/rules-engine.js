@@ -151,6 +151,7 @@
         ...normalizeBlockRules(normalized.blockrules || normalized.block || normalized.blocks),
         ...parseInlineBlockRules(normalized.lines || [])
       ],
+      duplicateWarningMatchers: parseDuplicateWarningMatchers(normalized.lines || []),
       customRules: normalizeCustomRules(normalized.customrules || normalized.rules),
       rangeRules: [
         ...parseRangeRules(normalized.lines || []),
@@ -565,6 +566,14 @@
       .filter(Boolean);
   }
 
+  function parseDuplicateWarningMatchers(lines) {
+    return (lines || [])
+      .map((line) => String(line || "").match(/^\s*duplicate-warning\s*:\s*(.+)$/i)?.[1])
+      .filter(Boolean)
+      .map((value) => cleanRuleText(value))
+      .filter(Boolean);
+  }
+
   function normalizeExplicitRangeRules(value) {
     if (value == null) return [];
     const list = Array.isArray(value) ? value : String(value).split(/\r?\n/);
@@ -732,6 +741,14 @@
     }
 
     return description.length >= 12 ? description : "";
+  }
+
+  function valueUsesDuplicateWarning(value, ruleSets) {
+    const haystack = cleanRuleText(value?.text || value?.description || "");
+    return (ruleSets || []).some((ruleSet) => {
+      const matchers = ruleSet?.duplicateWarningMatchers || [];
+      return matchers.some((matcher) => matcher && haystack.includes(cleanRuleText(matcher)));
+    });
   }
 
   function parseCardDescription(text) {
@@ -1186,6 +1203,7 @@
     parseCardDescription,
     parseCardRow,
     duplicateKeyForCard,
+    valueUsesDuplicateWarning,
     findKnownPlayerSports,
     findKnownPlayerTeams,
     valueNeedsTeamReview,

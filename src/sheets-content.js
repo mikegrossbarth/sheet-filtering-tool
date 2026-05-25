@@ -141,6 +141,7 @@ async function reviewExportedRows(ruleSets, rows) {
 
     const value = window.AutoSheetReviewRules.parseCardRow(description || rowText, rowText);
     const itemKey = duplicateKeyForValue(value);
+    const duplicateWarningsEnabled = window.AutoSheetReviewRules.valueUsesDuplicateWarning?.(value, ruleSets);
     const isDuplicate = itemKey && seenItems.has(itemKey);
     if (itemKey && !isDuplicate) seenItems.add(itemKey);
     recordSportCorrelation(sportSummary, value);
@@ -150,8 +151,8 @@ async function reviewExportedRows(ruleSets, rows) {
     const needsTeamReview = matchesAnySelectedRuleSet &&
       window.AutoSheetReviewRules.valueNeedsTeamReview?.(value, ruleSets);
 
-    if (matchesAnySelectedRuleSet && (isDuplicate || needsTeamReview)) {
-      if (isDuplicate) duplicateWarnings += 1;
+    if (matchesAnySelectedRuleSet && ((duplicateWarningsEnabled && isDuplicate) || needsTeamReview)) {
+      if (duplicateWarningsEnabled && isDuplicate) duplicateWarnings += 1;
       if (needsTeamReview) teamReviewWarnings += 1;
       warningRowNumbers.push(rowIndex + 1);
     } else if (matchesAnySelectedRuleSet) {
