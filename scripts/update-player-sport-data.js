@@ -42,6 +42,12 @@ const SOURCES = [
     extract: extractBleacherReportNfl1000
   },
   {
+    sport: "football",
+    name: "Tankathon NFL past drafts",
+    url: "https://www.tankathon.com/nfl/past_drafts",
+    load: loadTankathonNflDraftPlayers
+  },
+  {
     sport: "pokemon",
     name: "PokemonDB National Pokedex",
     url: "https://pokemondb.net/pokedex/national",
@@ -1315,7 +1321,41 @@ function normalizeNbaTeamName(value) {
 
 function normalizeNflTeamName(value) {
   const raw = String(value || "").trim();
-  return raw.replace(/^(Arizona|Atlanta|Baltimore|Buffalo|Carolina|Chicago|Cincinnati|Cleveland|Dallas|Denver|Detroit|Green Bay|Houston|Indianapolis|Jacksonville|Kansas City|Las Vegas|Los Angeles|Miami|Minnesota|New England|New Orleans|New York|Philadelphia|Pittsburgh|San Francisco|Seattle|Tampa Bay|Tennessee|Washington)\s+/, "").trim();
+  const aliases = {
+    ARI: "Cardinals",
+    ATL: "Falcons",
+    BAL: "Ravens",
+    BUF: "Bills",
+    CAR: "Panthers",
+    CHI: "Bears",
+    CIN: "Bengals",
+    CLE: "Browns",
+    DAL: "Cowboys",
+    DEN: "Broncos",
+    DET: "Lions",
+    GB: "Packers",
+    HOU: "Texans",
+    IND: "Colts",
+    JAX: "Jaguars",
+    KC: "Chiefs",
+    LAC: "Chargers",
+    LAR: "Rams",
+    LV: "Raiders",
+    MIA: "Dolphins",
+    MIN: "Vikings",
+    NE: "Patriots",
+    NO: "Saints",
+    NYG: "Giants",
+    NYJ: "Jets",
+    PHI: "Eagles",
+    PIT: "Steelers",
+    SEA: "Seahawks",
+    SF: "49ers",
+    TB: "Buccaneers",
+    TEN: "Titans",
+    WSH: "Commanders"
+  };
+  return aliases[raw] || raw.replace(/^(Arizona|Atlanta|Baltimore|Buffalo|Carolina|Chicago|Cincinnati|Cleveland|Dallas|Denver|Detroit|Green Bay|Houston|Indianapolis|Jacksonville|Kansas City|Las Vegas|Los Angeles|Miami|Minnesota|New England|New Orleans|New York|Philadelphia|Pittsburgh|San Francisco|Seattle|Tampa Bay|Tennessee|Washington)\s+/, "").trim();
 }
 
 function normalizeNhlTeamName(value) {
@@ -1381,6 +1421,69 @@ async function loadEspnNflPlayers() {
   }
 
   return players.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function loadTankathonNflDraftPlayers() {
+  const indexUrl = "https://www.tankathon.com/nfl/past_drafts";
+  const indexHtml = await fetchText(indexUrl);
+  const years = extractTankathonDraftYears(indexHtml);
+  const players = [];
+
+  for (const year of years) {
+    const html = await fetchText(`${indexUrl}/${year}`);
+    players.push(...extractTankathonNflDraftPlayers(html, year));
+  }
+
+  if (players.length < 500) {
+    throw new Error(`Tankathon NFL draft scraper found only ${players.length} player rows`);
+  }
+
+  return players.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function extractTankathonDraftYears(html) {
+  const years = new Set();
+  const pattern = /href=["']\/nfl\/past_drafts\/((?:19|20)\d{2})["']/g;
+  let match;
+  while ((match = pattern.exec(html))) {
+    years.add(Number(match[1]));
+  }
+
+  const parsedYears = [...years].filter((year) => year >= 2017 && year <= new Date().getFullYear() + 1);
+  if (parsedYears.length) return parsedYears.sort((a, b) => b - a);
+  return Array.from({ length: new Date().getFullYear() + 1 - 2017 + 1 }, (_, index) => new Date().getFullYear() + 1 - index);
+}
+
+function extractTankathonNflDraftPlayers(html, year) {
+  return String(html || "")
+    .split(/<div class=["']mock-row nfl["']>/)
+    .slice(1)
+    .map((row) => parseTankathonNflDraftRow(row, year))
+    .filter(Boolean);
+}
+
+function parseTankathonNflDraftRow(row, year) {
+  const pick = Number(row.match(/<div class=["']mock-row-pick-number["']>(\d+)<\/div>/)?.[1] || "");
+  const teamAbbrev = decodeHtml(row.match(/<img\b[^>]*class=["']nba-30["'][^>]*alt=["']([^"']+)["']/)?.[1] || "");
+  const name = decodeHtml(stripTags(row.match(/<div class=["']mock-row-name["']>([\s\S]*?)<\/div>/)?.[1] || "")).replace(/\s+/g, " ").trim();
+  const schoolPosition = decodeHtml(stripTags(row.match(/<div class=["']mock-row-school-position["']>([\s\S]*?)<\/div>/)?.[1] || "")).replace(/\s+/g, " ").trim();
+  if (!pick || !teamAbbrev || !isPlayerName(name)) return null;
+
+  const [position = "", school = ""] = schoolPosition.split("|").map((part) => part.trim());
+  const team = normalizeNflTeamName(teamAbbrev);
+  return {
+    name,
+    team,
+    position,
+    school,
+    draft: {
+      year,
+      pick,
+      team,
+      position,
+      school
+    }
+  };
 }
 
 async function loadNhlActivePlayers() {
@@ -1552,6 +1655,10 @@ function addPlayer(playerMap, player, sport) {
     ...toList(typeof player === "object" ? player.team : ""),
     ...toList(typeof player === "object" ? player.teams : "")
   ].filter(Boolean);
+  const drafts = [
+    ...toList(existing.drafts),
+    ...(typeof player === "object" && player.draft ? [player.draft] : [])
+  ].filter(Boolean);
   playerMap[key] = {
     ...existing,
     sport,
@@ -1560,11 +1667,23 @@ function addPlayer(playerMap, player, sport) {
   const uniqueTeams = [...new Set(teams)];
   if (uniqueTeams.length === 1) playerMap[key].team = uniqueTeams[0];
   if (uniqueTeams.length > 1) playerMap[key].teams = uniqueTeams;
+  const uniqueDrafts = uniqueBy(drafts, (draft) => [draft.year, draft.pick, draft.team].filter(Boolean).join(":"));
+  if (uniqueDrafts.length) playerMap[key].drafts = uniqueDrafts;
 }
 
 function toList(value) {
   if (value == null || value === "") return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function uniqueBy(values, keyFn) {
+  const seen = new Set();
+  return values.filter((value) => {
+    const key = keyFn(value);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function isPlayerName(value) {
