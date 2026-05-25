@@ -142,6 +142,8 @@ async function reviewExportedRows(ruleSets, rows) {
     reviewed += 1;
 
     const value = window.AutoSheetReviewRules.parseCardRow(description || rowText, rowText);
+    const explicitPrice = extractPriceFromRowCells(row, headers);
+    if (value.price == null && explicitPrice != null) value.price = explicitPrice;
     const itemKey = duplicateKeyForValue(value);
     const duplicateWarningsEnabled = window.AutoSheetReviewRules.valueUsesDuplicateWarning?.(value, ruleSets);
     const isDuplicate = itemKey && seenItems.has(itemKey);
@@ -193,6 +195,8 @@ function reviewVisibleRows(ruleSets) {
     reviewed += 1;
 
     const value = window.AutoSheetReviewRules.parseCardRow(description || rowText, rowText);
+    const explicitPrice = extractPriceFromRowCells(rowTexts, visibleHeaders);
+    if (value.price == null && explicitPrice != null) value.price = explicitPrice;
     recordSportCorrelation(sportSummary, value);
     const matchesAnySelectedRuleSet = ruleSets.some((ruleSet) =>
       window.AutoSheetReviewRules.valueMatchesRuleSet(value, ruleSet)
@@ -565,6 +569,7 @@ function findHeaderRowIndex(rows) {
     const semantics = row.map(headerSemantic).filter(Boolean);
     const unique = new Set(semantics);
     let score = unique.size;
+    if (unique.has("description")) score += 2;
     if (unique.has("player")) score += 2;
     if (unique.has("year")) score += 1;
     if (unique.has("gradeCompany") || unique.has("grade")) score += 1;
@@ -597,6 +602,7 @@ function buildRowContext(row, headers = []) {
     ? `${gradeCompany} ${grade}`
     : gradeCompany || grade || "";
   const descriptionParts = [
+    ...fieldList(fields.description),
     ...fieldList(fields.player),
     ...fieldList(fields.year),
     ...fieldList(fields.brand),
@@ -612,7 +618,7 @@ function buildRowContext(row, headers = []) {
   const description = composeRowDescription(descriptionParts);
   const rowText = [
     description,
-    ...fieldList(fields.price),
+    ...fieldList(fields.price).map(normalizePriceForRowText),
     ...fieldList(fields.cert)
   ].filter(Boolean).join(" ");
   return { description, rowText };
@@ -625,6 +631,7 @@ function headerSemantic(header) {
     .replace(/\s+/g, " ")
     .trim();
   if (!value) return "";
+  if (/^card$|\b(card description|description|item|listing|title)\b/.test(value)) return "description";
   if (/\b(player|athlete|subject|name)\b/.test(value) && !/\b(team|set|product|brand|company)\b/.test(value)) return "player";
   if (/^year$|\b(card year|season)\b/.test(value)) return "year";
   if (/\b(brand|manufacturer|maker)\b/.test(value)) return "brand";
@@ -639,6 +646,40 @@ function headerSemantic(header) {
   if (/^team$|\b(team name|club)\b/.test(value)) return "team";
   if (/^sport$|\bleague\b/.test(value)) return "sport";
   return "";
+}
+
+function normalizePriceForRowText(value) {
+  const parsed = parsePriceCell(value, { allowPlainInteger: true });
+  return parsed == null ? String(value || "").trim() : `$${parsed}`;
+}
+
+function extractPriceFromRowCells(row, headers = []) {
+  const priceHeaderIndex = headers.findIndex((header) => headerSemantic(header) === "price");
+  if (priceHeaderIndex >= 0) {
+    return parsePriceCell(row[priceHeaderIndex], { allowPlainInteger: true });
+  }
+
+  const nonEmptyCells = row.map((cell) => String(cell || "").trim()).filter(Boolean);
+  if (nonEmptyCells.length === 2) {
+    return parsePriceCell(nonEmptyCells[1], { allowPlainInteger: true });
+  }
+
+  for (const cell of row.slice(1)) {
+    const price = parsePriceCell(cell, { allowPlainInteger: false });
+    if (price != null) return price;
+  }
+  return null;
+}
+
+function parsePriceCell(value, options = {}) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const hasExplicitPriceSignal = /^\$/.test(text) || /[,.]\d{1,2}$/.test(text) || /,\d{3}/.test(text);
+  if (!options.allowPlainInteger && !hasExplicitPriceSignal) return null;
+  const match = text.match(/^\$?\s*(\d{1,3}(?:,\d{3})*|\d+)(?:\.(\d{1,2}))?$/);
+  if (!match) return null;
+  const numeric = Number(`${match[1].replace(/,/g, "")}.${match[2] || "0"}`);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
 function fieldList(value) {
