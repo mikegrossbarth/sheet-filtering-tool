@@ -726,6 +726,13 @@ Football $10-$299`, ["custom"], []);
 
 {
   const [custom] = engine.buildRuleSets(`[Custom]
+Soccer $10-$1000`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("ERLING HAALAND 2019 TOPPS CHROME SAPPHIRE PSA 10", "$500"), custom), true);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
 Basketball $100-$5000
 Baseball $100-$5000
 block: Vintage

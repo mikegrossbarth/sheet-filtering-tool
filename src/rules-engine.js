@@ -39,6 +39,7 @@
     "aaron judge": "baseball",
     "lionel messi": "soccer",
     "cristiano ronaldo": "soccer",
+    "erling haaland": "soccer",
     "connor bedard": "hockey",
     "wayne gretzky": "hockey",
     "aja wilson": "wnba",
