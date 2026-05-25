@@ -46,6 +46,7 @@
   const PLAYER_TEAM_HINTS = {};
   const PARTIAL_PLAYER_HINTS = {};
   const GRADE_COMPANIES = ["psa", "bgs", "sgc", "cgc"];
+  const UNGRADED_PATTERN = /\b(raw|sealed|unsealed|unslabbed|ungraded|not\s+graded|no\s+grade)\b/i;
 
   const PRODUCT_WORDS = new Set([
     "topps", "bowman", "chrome", "sapphire", "finest", "heritage", "stadium", "club",
@@ -332,6 +333,10 @@
 
   function specialBlockMatches(raw, value, haystack) {
     const rule = cleanRuleText(raw);
+
+    if (/\b(raw|sealed|unsealed|unslabbed|ungraded)\b/i.test(rule) && value.isUngraded) {
+      return true;
+    }
 
     if (
       /\bdowntowns?\b/i.test(rule) &&
@@ -681,6 +686,7 @@
     const priceMatch = rawText.match(/\$\s*(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d{2})?\b/);
     const numericCellMatch = rawText.trim().match(/^(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d{1,2})?$/);
     const gradeMatch = rawText.match(/\b(PSA|BGS|SGC|CGC)\b\D{0,24}\b(10|9\.5|9|8\.5|8|7|6|5|4|3|2|1)\b/i);
+    const isUngraded = !gradeMatch && UNGRADED_PATTERN.test(rawText);
     return {
       text: rawText,
       price: priceMatch
@@ -689,7 +695,8 @@
           ? Number(numericCellMatch[0].replace(/,/g, ""))
           : null,
       gradeCompany: gradeMatch ? gradeMatch[1].toUpperCase() : null,
-      grade: gradeMatch ? Number(gradeMatch[2]) : null
+      grade: gradeMatch ? Number(gradeMatch[2]) : null,
+      isUngraded
     };
   }
 
@@ -723,7 +730,8 @@
       numbering: descriptionParsed.numbering,
       gradingCompany: parsed.gradeCompany || descriptionParsed.gradingCompany,
       gradeCompany: parsed.gradeCompany || descriptionParsed.gradeCompany,
-      grade: parsed.grade ?? descriptionParsed.grade
+      grade: parsed.grade ?? descriptionParsed.grade,
+      isUngraded: parsed.isUngraded || descriptionParsed.isUngraded || false
     };
   }
 
@@ -773,7 +781,8 @@
       teamCorrelations,
       gradeCompany: gradeInfo.gradeCompany,
       gradingCompany: gradeInfo.gradeCompany,
-      grade: gradeInfo.grade
+      grade: gradeInfo.grade,
+      isUngraded: gradeInfo.isUngraded
     };
   }
 

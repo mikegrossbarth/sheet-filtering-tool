@@ -664,4 +664,24 @@ Poke      $7k-10k        None         7            3+
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2023 pete alonso dynasty auto sgc 9.5/10 /10", "$250"), custom), false);
 }
 
+{
+  assert.equal(engine.parseCardRow("2024 panini prizm lamelo ball raw", "$1800").isUngraded, true);
+  assert.equal(engine.parseCardRow("2024 panini prizm lamelo ball sealed", "$1800").isUngraded, true);
+  assert.equal(engine.parseCardRow("2024 panini prizm lamelo ball unsealed", "$1800").isUngraded, true);
+  assert.equal(engine.parseCardRow("2024 panini prizm lamelo ball unslabbed", "$1800").isUngraded, true);
+  assert.equal(engine.parseCardRow("2024 panini prizm lamelo ball PSA 10 raw note", "$1800").isUngraded, false);
+}
+
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+Basketball $100-$5000
+block: Raw or Sealed`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball raw", "$1800"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball sealed", "$1800"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball unsealed", "$1800"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball unslabbed", "$1800"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball psa 10", "$1800"), custom), true);
+}
+
 console.log("rules-engine tests passed");
