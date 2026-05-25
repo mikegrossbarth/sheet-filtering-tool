@@ -1,0 +1,89 @@
+const assert = require("assert");
+const fs = require("fs");
+const vm = require("vm");
+
+const noopListener = { addListener() {} };
+const context = {
+  console,
+  URL,
+  fetch,
+  setTimeout,
+  clearTimeout,
+  chrome: {
+    runtime: {
+      onInstalled: noopListener,
+      onStartup: noopListener,
+      onMessage: noopListener,
+      getURL: (path) => path
+    },
+    action: { onClicked: noopListener },
+    tabs: {
+      onUpdated: noopListener,
+      onActivated: noopListener,
+      get: async () => ({}),
+      query: async () => [],
+      sendMessage: async () => ({}),
+      create: async () => ({}),
+      update: async () => ({})
+    },
+    scripting: {
+      executeScript: async () => []
+    },
+    storage: {
+      local: {
+        get: async () => ({}),
+        set: async () => ({})
+      }
+    },
+    identity: {
+      getAuthToken() {}
+    }
+  }
+};
+
+vm.runInNewContext(fs.readFileSync("src/background.js", "utf8"), context);
+
+const dollar = String.fromCharCode(36);
+const parametersRows = [
+  ["BRADY & KOBE", "LEBRON JAMES", "Kabooms", "Downtown", "GOATS", "Color Blast", "Manga"],
+  [`${dollar}100 - ${dollar}5,000`, `${dollar}300 - ${dollar}4,000`, `${dollar}500 - ${dollar}5,000`, `${dollar}250 - ${dollar}2,000`, `${dollar}100 - ${dollar}7,500`, `${dollar}500 - ${dollar}5000`, `${dollar}500 - ${dollar}5000`],
+  [],
+  ["NO GRADES BELOW 8", "NO GRADES BELOW 8"],
+  [],
+  ["NO FADED AUTOS", "NO FADED AUTOS", "(NO DUPLICATES)", "(NO DUPLICATES)"]
+];
+
+const parameterRules = context.synthesizeRulesFromSheetValues("ParametersRanges", parametersRows, {});
+
+assert.ok(parameterRules.includes("Tom Brady $100-5000"));
+assert.ok(parameterRules.includes("Kobe Bryant $100-5000"));
+assert.ok(parameterRules.includes("Kaboom $500-5000"));
+assert.ok(parameterRules.includes("Downtown $250-2000"));
+assert.ok(parameterRules.includes("duplicate-warning: Kaboom"));
+assert.ok(parameterRules.includes("duplicate-warning: Downtown"));
+
+const payoutRows = [
+  ["PAYOUTS"],
+  [],
+  ["CATEGORY", "VALUE RANGE", "YOUR PAYOUT %"],
+  [],
+  ["TOM BRADY", `${dollar}100 - ${dollar}5,000`, 0.98],
+  ["KOBE BRYANT", `${dollar}100 - ${dollar}5,000`, 0.98],
+  ["KABOOMS", `${dollar}500 - ${dollar}2,000`, 0.98],
+  ["KABOOMS", `${dollar}2,000 - ${dollar}5,000`, 0.95],
+  ["DOWNTOWNS", `${dollar}250 - ${dollar}500`, 0.98],
+  ["DOWNTOWNS", `${dollar}500 - ${dollar}2,000`, 0.88],
+  ["NBA", `${dollar}2,000 - ${dollar}5,000`, 0.9]
+];
+
+const payoutRules = context.synthesizeRulesFromSheetValues("Payouts", payoutRows, {});
+const compingRules = context.synthesizeRulesFromSheetValues("Comping Standards", [
+  ["Comping Standards"],
+  ["We use CardLadder and ALT for checking all Comps"],
+  ["High Pop Count - 5 or more direct sales in the past 14 days"]
+], {});
+
+assert.deepEqual(payoutRules, []);
+assert.deepEqual(compingRules, []);
+
+console.log("background rule tests passed");

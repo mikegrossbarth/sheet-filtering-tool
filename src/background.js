@@ -485,6 +485,10 @@ async function buildWorkbookContext(sheets, token, spreadsheetId) {
 }
 
 function synthesizeRulesFromSheetValues(title, values, context = {}) {
+  if (/^(comping standards|payouts)$/i.test(cleanRuleLabel(title))) {
+    return [];
+  }
+
   if (/do not buy|never buy/i.test(title)) {
     return synthesizeDoNotBuyRules(values);
   }
@@ -713,6 +717,7 @@ function synthesizeArenaClubRules(values, context = {}) {
       });
     });
     rules.push(...synthesizeDuplicateWarningRules(values, headerRowIndex));
+    return [...new Set(rules)];
   }
 
   values.forEach((row) => {
@@ -735,6 +740,7 @@ function synthesizeArenaClubCategoryTableRules(values, context = {}) {
     const label = normalizeRuleLabel(row[0]);
     const range = parseSheetRange(row[1]);
     if (!label || !range) return;
+    if (parseSheetRange(label)) return;
     expandHeaderLabel(label).forEach((expandedLabel) => {
       if (isGoatRuleLabel(expandedLabel) && context.goatPlayers?.length) {
         context.goatPlayers.forEach((player) => rules.push(`${player} $${range.min}-${range.max}`));
