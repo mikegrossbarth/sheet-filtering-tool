@@ -64,6 +64,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id || !tab.url?.startsWith("https://docs.google.com/spreadsheets/")) return;
+  await injectSheetReviewScripts(tab.id).catch(() => {});
   await chrome.tabs.sendMessage(tab.id, { type: "AUTO_SHEET_REVIEW_SHOW_PANEL" }).catch(() => {});
 });
 
@@ -947,9 +948,23 @@ async function configureForTab(tabId, tab) {
     tabId,
     title: isSheet ? "Sheet Filtering Tool" : "Open a Google Sheet to review"
   });
+  if (isSheet) {
+    await injectSheetReviewScripts(tabId).catch(() => {});
+  }
 }
 
 async function configureAllTabs() {
   const tabs = await chrome.tabs.query({});
   await Promise.all(tabs.map((tab) => configureForTab(tab.id, tab)));
+}
+
+async function injectSheetReviewScripts(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["src/player-sport-data.js", "src/rules-engine.js", "src/sheets-content.js"]
+  });
+  await chrome.scripting.insertCSS({
+    target: { tabId },
+    files: ["src/sheets-content.css"]
+  }).catch(() => {});
 }

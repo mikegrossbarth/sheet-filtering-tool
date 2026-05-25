@@ -1,9 +1,10 @@
-(function initAutoSheetReviewPanel() {
-  if (window.__autoSheetReviewPanelInitialized) return;
-  window.__autoSheetReviewPanelInitialized = true;
-})();
+window.__autoSheetReviewContentVersion = chrome.runtime?.getManifest?.().version || "dev";
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+(function initAutoSheetReviewContent() {
+  if (window.__autoSheetReviewContentInitialized) return;
+  window.__autoSheetReviewContentInitialized = true;
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "AUTO_SHEET_REVIEW_SHOW_PANEL") {
     ensureReviewPanel({ forceOpen: true });
     sendResponse({ ok: true });
@@ -31,7 +32,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ error: error?.message || "Unable to review sheet." });
     }
   }
-});
+  });
+})();
 
 function ensureReviewPanel(options = {}) {
   let panel = document.querySelector("#auto-sheet-review-panel");
