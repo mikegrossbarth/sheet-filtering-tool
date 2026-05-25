@@ -88,9 +88,23 @@ const arenaClubSportFallbackRules = context.synthesizeRulesFromSheetValues("Para
   [null, null, null, "Price Ranges", `${dollar}2,000 - ${dollar}5,000`],
   ["NO FADED AUTOS", "NO FADED AUTOS", "(NO DUPLICATES)", "(NO DUPLICATES)"]
 ], {});
+const combinedArenaClubRules = context.synthesizeRulesFromSheetValues("ParametersRanges", [
+  ["BRADY & KOBE", "LEBRON JAMES", "Kabooms", "Downtown"],
+  [`${dollar}100 - ${dollar}5,000`, `${dollar}300 - ${dollar}4,000`, `${dollar}500 - ${dollar}5,000`, `${dollar}250 - ${dollar}2,000`],
+  [],
+  [null, null, null, "Basketball"],
+  [null, null, null, "Price Ranges", `${dollar}10 - ${dollar}299`],
+  [null, null, null, "Price Ranges", `${dollar}2,000 - ${dollar}5,000`],
+  ["NO FADED AUTOS", "NO FADED AUTOS", "(NO DUPLICATES)", "(NO DUPLICATES)"]
+], {});
 
 assert.deepEqual(payoutRules, []);
 assert.deepEqual(compingRules, []);
 assert.deepEqual(arenaClubSportFallbackRules, ["Basketball $10-299", "Basketball $2000-5000"]);
+assert.ok(combinedArenaClubRules.includes("Tom Brady $100-5000"));
+assert.ok(combinedArenaClubRules.includes("LEBRON JAMES $300-4000"));
+assert.ok(combinedArenaClubRules.includes("Basketball $10-299"));
+assert.ok(combinedArenaClubRules.includes("Basketball $2000-5000"));
+assert.ok(combinedArenaClubRules.includes("duplicate-warning: Downtown"));
 
 console.log("background rule tests passed");

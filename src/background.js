@@ -694,10 +694,7 @@ function synthesizeDoNotBuyRules(values) {
 
 function synthesizeArenaClubRules(values, context = {}) {
   const rules = [];
-  const tableRules = synthesizeArenaClubCategoryTableRules(values, context);
-  if (tableRules.length) {
-    return [...new Set(tableRules)];
-  }
+  rules.push(...synthesizeArenaClubCategoryTableRules(values, context));
 
   const headerRowIndex = values.findIndex((row) =>
     row.some((cell) => /brady|kobe|lebron|kaboom|downtown|goats?|color blast|manga/i.test(String(cell || "")))
@@ -718,9 +715,14 @@ function synthesizeArenaClubRules(values, context = {}) {
       });
     });
     rules.push(...synthesizeDuplicateWarningRules(values, headerRowIndex));
-    return [...new Set(rules)];
   }
 
+  rules.push(...synthesizeArenaClubSportRangeRules(values));
+  return [...new Set(rules)];
+}
+
+function synthesizeArenaClubSportRangeRules(values) {
+  const rules = [];
   values.forEach((row) => {
     row.forEach((cell, index) => {
       if (!/^price ranges?$/i.test(String(cell || "").trim())) return;
@@ -731,8 +733,7 @@ function synthesizeArenaClubRules(values, context = {}) {
       }
     });
   });
-
-  return [...new Set(rules)];
+  return rules;
 }
 
 function isArenaClubParametersSheet(values) {
@@ -749,6 +750,7 @@ function synthesizeArenaClubCategoryTableRules(values, context = {}) {
     const label = normalizeRuleLabel(row[0]);
     const range = parseSheetRange(row[1]);
     if (!label || !range) return;
+    if (/^price ranges?$/i.test(label)) return;
     if (parseSheetRange(label)) return;
     expandHeaderLabel(label).forEach((expandedLabel) => {
       if (isGoatRuleLabel(expandedLabel) && context.goatPlayers?.length) {
