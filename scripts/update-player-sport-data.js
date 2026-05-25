@@ -3,6 +3,7 @@ const path = require("node:path");
 
 const OUTPUT_FILE = path.join(__dirname, "..", "src", "player-sport-data.js");
 const BASEBALL_FEVER_TOP_1000_FILE = path.join(__dirname, "..", "data", "baseball-fever-top-1000.txt");
+const SOCCER_GREATEST_1000_FILE = path.join(__dirname, "..", "data", "soccer-greatest-1000.txt");
 
 const SOURCES = [
   {
@@ -51,6 +52,12 @@ const SOURCES = [
     name: "Sportsnet NHL players / NHL active rosters",
     url: "https://www.sportsnet.ca/hockey/nhl/players/",
     load: loadNhlActivePlayers
+  },
+  {
+    sport: "soccer",
+    name: "Bundled soccer greatest 1000",
+    url: "data/soccer-greatest-1000.txt",
+    load: loadSoccerGreatest1000Players
   },
   {
     sport: "soccer",
@@ -1460,6 +1467,48 @@ async function loadBaseballFeverTop1000Players() {
     throw new Error(`Bundled Baseball Fever top 1000 list has only ${players.length} player names`);
   }
   return players;
+}
+
+async function loadSoccerGreatest1000Players() {
+  const text = await fs.readFile(SOCCER_GREATEST_1000_FILE, "utf8");
+  const players = extractRankedSoccerNames(text);
+  if (players.length < 900) {
+    throw new Error(`Bundled soccer greatest 1000 list has only ${players.length} player names`);
+  }
+  return players;
+}
+
+function extractRankedSoccerNames(text) {
+  const names = new Set();
+  const normalized = String(text || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\r?\n/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b((?:1000|[1-9]\d{0,2}))\s+(?=[A-Z])/g, "$1.")
+    .trim();
+  const pattern = /(?:^|\s*)(?:1000|[1-9]\d{0,2})[.)]\s*([\s\S]*?)(?=\s*(?:1000|[1-9]\d{0,2})[.)]\s*|$)/g;
+  let match;
+
+  while ((match = pattern.exec(normalized))) {
+    const name = normalizeCuratedSoccerName(match[1]);
+    if (isCuratedSoccerPlayerName(name)) names.add(name);
+  }
+
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+function normalizeCuratedSoccerName(value) {
+  return String(value || "")
+    .replace(/^\.+|\.+$/g, "")
+    .replace(/\s+\.+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isCuratedSoccerPlayerName(value) {
+  const name = String(value || "").trim();
+  if (name.length < 3 || name.length > 48) return false;
+  return /^[A-Za-z][A-Za-z'. -]+$/.test(name);
 }
 
 function collectNamesFromJson(value, names) {

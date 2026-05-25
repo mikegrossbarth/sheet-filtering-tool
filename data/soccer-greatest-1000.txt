@@ -1,0 +1,100 @@
+﻿1.Messi 2.Pele 3.Maradona 4.Cristiano Ronaldo 5.Cruyff 6.Platini 7.Di Stefano 8.Beckenbauer 9.Puskas 10.Garrincha
+11.Eusebio 12.G. Muller 13.Ronaldo 14.Zidane 15.Zico 16.van Basten 17.Didi 18.Kopa 19.Xavi 20.P. Maldini
+21.B.Charlton 22.F.Baresi 23.Matthaus 24.Iniesta 25.Romario 26.Meazza 27.PRFalcao 28.Best 29.Rummenigge 30.Ronaldinho
+31.Neeskens 32.Robben 33.Rivera 34.R.Baggio 35.Moreno 36.Buffon 37.Schiaffino 38.Netzer 39.Maier 40.Zoff
+41.Rivaldo 42.Suarez Miramontes 43.Neymar 44.F. Walter 45.S. Mazzola 46.Gullit 47.Sindelar 48.Matthews 49.Raul 50.Kocsis
+51.Lewandowski 52.Keegan 53.Facchetti 54.Krol 55.Gento 56.Suarez 57.Roberto Carlos 58.Casillas 59.Henry 60.Vieira
+61.Pirlo 62.O. Varela 63.JL Andrade 64.Yashin 65.Rijkaard 66.T. Muller 67.Batistuta 68.Jairzinho 69.Ibrahimovic70.Rensenbrink
+71.Banks 72.Altafini 73.Zizinho 74.Schuster 75.Liedholm 76.Rivelino 77.Bozsik 78.Hidegkuti 79.Socrates 80.M. Laudrup
+81.Sivori 82.Sergio Ramos 83.Puyol 84.van Nistelrooy 85.Shevchenko 86.Seeler 87.Scirea 88.Lahm 89.Thuram 90.Greaves
+91.Nordahl 92.De Bruyne 93.Tostao 94.Klose 95.Fontaine 96.Shearer 97.H. Sanchez 98.Breitner 99.Etoo 100.Passarella
+101.Figueroa 102.Moore 103.Lineker 104.Lampard 105.Overath 106.Cannavaro 107.Kubala 108.Bergkamp 109.Figo 110.Neuer
+111.Vogts 112.Salah 113.J. Charles 114.Leonidas 115.Ademir de Menezes 116.Modric 117.V. Mazzola 118.Beckham 119.E. Hazard 120.Totti
+121.Giggs 122.Dzajic 123.Dani Alves 124.Hagi 125.Snejider 126.Rooney 127.Kempes 128.Kaka 129.Dalglish 130.Masopust
+131.Mbappe 132.Simonsen 133.P. Rossi 134.Giresse 135.Del Piero 136.Gerson 137.Villa 138.Hamrin 139.Bican 140.Ribery
+141.Vieri 142.Hurst 143.Rahn 144.Finney 145.Gerrard 146.Stoichkov 147.Papin 148.Piola 149.Griezmann 150.Kroos
+151.Deyna 152.Boniek 153.Vava 154.Cafu 155.Sarosi 156.Thiago Silva 157.Coluna 158.Julinho Botelho 159.Cantona 160.Nedved
+161.Bale 162.Klinsmann 163.Aguero 164.Kane 165.Benzema 166.Djalma Santos 167.Nilton Santos 168.Suker 169.Riva 170.Hassler
+171.van der Sar 172.Bryan Robson 173.Drogba 174.Owen 175.Busquets 176.Ozil 177.van Persie 178.Krankl 179.Iron 180.P. Schmeichel
+181.Desailly 182.Van Himst 183.Francescoli 184.Cubillas 185.Amoros 186.Zola 187.Litmanen 188.Dean 189.Elkjear Larsen 190.Albert
+191.Forlan 192.Blokhin 193.Savicevic 194.Zarra 195.F. Inzaghi 196.Luis Pereira 197.Santamaria 198.Sammer 199.Schnellinger 200.Kahn
+201.Schumacher 202.Zanetti 203.Rush 204.Erico 205.Weah 206.Tigana 207.David Silva 208.Fernando Torres 209.Lubanski 210.Lato
+211.Kohler 212.Di Maria 213.Gascoigne 214.Shilton 215.Forster 216.Tresor 217.Nesta 218.Brehme 219.Yaya Toure 220.Kante
+221.Pirri 222.Stielike 223.R. Koeman 224.van Hanegem 225.Pogba 226.Pique 227.Marcelo 228.Godin 229.Junior 230.Scarone
+231.Ghiggia 232..Loustau 233.Bettega 234.F. de Boer 235.Kluivert 236.Vialli 237.Fabregas 238.Cerezo 239.Redondo 240.Seedorf
+241.Ballack 242.Toni 243.Cabrini 244.B. Conti 245.Bonhof 246.Sterling 247.Boniperti 248.Ardiles 249.Blanc 250.J. Rodriguez
+251.Blanchflower 252.Terry 253.Law 254.Pedernara 255.Schweinsteiger 256.Courtois 257.Mascherano 258.Lukaku 259.Edwards 260.Deschamps
+261.Makelele 262.Hummels 263.Ocwirk 264.V. Ivanov 265.Bene 266.Mane 267.Chiellini 268.Overmars 269.Barnes 270.Amancio
+271.Heynckess 272.Domingos Guia 273.Ceulemans 274.Dirceu Guimaraes 275.Cavani 276.Shesternyev 277.Briegel 278.Butragueno 279.Scholes 280.B. Wright
+281.Lucio 282.Ademir de Guia 283.A. Cole 284.Bergomi 285.Mauro Silva 286.Hellstrom 287.Trezeguet 288.Skoblar 289.Czibor 290.Lizarazu
+291.Voller 292.Labruna 293.Fischer 294.Danilo Alvim 295.Littbarski 296.Rui Costa 297.Pires 298.Tardelli 299.Higuain 300.H. Haller
+301.Bebeto 302.J. Oblak 303.A. Sanchez 304.Lawton 305.Jusufi 306.Gilmar 307.Dasayev 308.Preudhomme 309.Pfaff 310.Pepe Kepler
+311.Alba 312.Mazurkiewicz 313.Adams 314.Zamora 315.Popluhar 316.Vasovic 317.Jonquet 318.R. Ferdinand 319.Susic 320.Sekularec
+321.Johnstone 322.S. Campbell 323.Peters 324.Haynes 325.Marzolini 326.Kaltz 327.Careca 328.Carlos Alberto 329.Eriksen 330.Pagliuca
+331.Bonucci 332.Zenga 333.Caniggia 334.B. Oblak 335.Effenberg 336.Xabi Alonso 337.Beara 338.Artime 339.Viktor 340.van Dijk
+341.Scifo 342.Deco 343.Antognoni 344.Tevez 345.Crespo 346.R. Falcao 347.N. Rossi 348.Riquelme 349.Aubameyang 350.Futre
+351.Reus 352.Casemiro 353.JS Veron 354.Ince 355.Orsi 356.Mandzukic 357.A. Spencer 358.D. Muller 359.Nasazzi 360.Lofthouse
+361.Monti 362.A. Moller 363.Djorkaeff 364.Friedenreich 365.Braine 366.Dzeko 367.Corbatta 368.Causio 369.B. Kostic 370.Eder Assis
+371.Gotze 372.Bonev 373.Pedro Rocha 374.Juninho Pernambucano 375.Cech 376.Zubizarreta 377.Jair Rosa Pinto 378.Aldair 379.Clemence 380.Jennings
+381.Keizer 382.Chilavert 383.van Breukelen 384.Southall 385.Carrizo 386.Asparukhov 387.Langara 388.Bierhoff 389.Buchwald
+390.Schulz 391.Varane 392.Todd 393.Vidic 394.Migueli 395.Mauro Ramos 396.Robinho 397.Evaristo Macedo 398.Boninsegna 399.Huntelaar 400.Geels
+401.Milla. 402.A. Honorio Coutinho 403.D. Milito 404.Netto 405.Cisowski 406.Lacombe 407.Deak 408.Streltsov 409.H. Larsson 410.Szarmach
+411.Wilimowski 412.Bertoni 413.Bochini 414.Vidal 415.Haan 416.Davids 417.Gerets 418.van der Vaart 419.van der Kujilen 420.Ayew Pele
+421.Essien 422.Kimmich 423.Emerson Ferreira 424.Brady 425.Basra 426.Zl. Cajkovski 427.Zsengeller 428.A. Ball 429.Hoddle 430.More
+431.Valdo 432.Heleno 433.Miguez 434.Galic 435.Michel 436.Roy Keane 437.Bremner 438.Planicka 439.Verratti 440. van Beveren
+441.Iribar 442.Canizares 443.Vitor Baia 444.Burgnich 445.Maicon 446.Branco 447.Jorginho Amorim Campos 448.Dunga 449.Voronin 450.Rakitic
+451.Bulgarelli 452.Hanappi 453.Gundogan 454.Balakov 455.Finidi George 456.Luis Enrique 457.Souness 458.Guardiola 459.Magath 460.Maceda
+461.Sanchis 462.Picchi 463.Ferrara 464.Van Moer 465.K. Allofs 466.L. Fernandez 467.De Gea 468.Hrubesch 469.Benetti 470.Aragones
+471.Mortensen 472.Stiles 473.Bossis 474.Mancini 475.Mijatovic 476.Brindisi 477.Gentile 478.Alaba 479.P. Coutinho 480.Sansom
+481.Armfield 482.Camacho 483.Zambrotta 484.Di Natale 485.Son Heung-min 486.Mermans 487.Morientes 488.Julio Cesar da Silva 489.Zamorano 490.R. Carvalho
+491.J. Boateng 492.W. Samuel 493.R. Ayala 494.Wilkes 495.W. van der Kerckhof 496.Stam 497.Domenghini 498.Corso 499.Keylor Navas 500.Bianchi
+501.Valdano 502.Adriano Leite 503.Mario Gomez 504.Signori 505.Lorimer 506.Makaay 507.Felipe Luis 508.Trautmann 509.Toldo 510.Albertosi
+511.Popescu 512.Rai 513.Gren 514.Bellini 515.Jesus Garay 516.Ruggeri 517.Isco 518.B. Laudrup 519.U. Honess 520.Waddle
+521.Bastin 522.Segarra 523.Marinho Chagas 524.Onnis 525.Berbatov 526.Bruno Fernandes 527.Juan Lozano 528.Amarildo 529.Leonardo 530.Rep
+531.Vincent 532.Morlock 533.Re 534.Lehmann 535.Hamsik 536.Mkhitaryan 537.Dobrin 538.Handanovic 539.Alisson 540.Flohe
+541.Pjanic 542.Piantoni 543.Ben Barek 544.Roberto Firmino 545.Belodedici 546.Brolin 547.Panenka 548.Combin 549.Genghini 550.Zebec
+551.W. Ortiz 552.Valderrama 553.Madjer 554.Burruchaga 555.Okocha 556.Sastre 557.Alex James 558.Schaal 559.Salif Keita 560.Seydou Keita
+561.Simeone 562.Katanec 563.E. Petit 564.Sauzee 565.McGrath 566.Thiago Alcantara 567.Sczepan 568.Pancev 569.Nejedly 570.F. Morena
+571.Roberto Dinamite 572.Dybala 573.Immobile 574.Oliseh 575.Cueto 576.Platt 577.Neal 578.Dr. Stojkovic 579.Julio C. Romero 580.Wilkins
+581.Seaman 582.Kopke 583.Barthez 584.Julio Cesar Soares 585.Fillol 586.Donnarumma 587.Eulogio Martinez 588.Robbie Keane 589.Elber 590.Pizarro
+591.J. Koller 592.B. Boli 593.Germano 594.Gallas 595.Lloris 596.Bakero 597.Cuadrado 598.Sigurvinsson 599.Francis 600.Nyilasi
+601.N. Mendez 602.N.Alonso 603.Bein 604.Soskic 605.Streich 606.Yorke 607.Mahrez 608.Yazalde 609.Perfumo 610.Polster
+611.Jorginho Filho 612.Koke 613.Leonel Sanchez 614.Costacurta 615.Praest 616.Schlosser 617.Skoglund 618.Kompany 619.Gustavsson 620.Schrojf
+621.Holzenbein 622.Chico 623.Ze Roberto 624.Bonner 625.Tarantini 626.Terence Cooper 627.T. Gemmell 628.A. Hansen 629.ter Stegen 630.Dida
+631.Zito 632.Mertens 633.Kuyt 634.Evra 635.Hapgood 636.Pezzey 637.Bratseth 638.Minelli 639.Chapuisat 640.Bobek
+641.Tichy 642.Hugi 643.Kindvall 644.Chumpitaz 645.Thon 646.Schwarzenbeck 647.Szymaniak 648.Vierchovod 649.M. Olsen 650.Ljungberg
+651.Lerby 652. F. Thijsen 653.Bernardo Silva 654.Gadocha 655.Grabowski 656.Arnesen 657.Ginola 658.Mikhaylichenko 659.McManaman 660.Altobelli
+661.Gordillo 662.Belanov 663.Alexander-Arnold 664.Poniedielnik 665.Protasov 666.T. Taylor 667.J. Henderson 668.Atilio Garcia 669.Vukas 670.Jose Augusto
+671.Cha Bum-keun 672.R. Carter 673.Arconada 674.Hyypia 675.Marquinhos 676.Schillaci 677.Payet 678.Tadic 679.E. Haaland 680.C. Bravo
+681.Mlynarczyk 682.Grosics 683.van der Hart 684.Lidell 685.H. Gallagher 686.Morton 687.Khedira 688.Podolski 689.P. Sousa 690.Peruzzi
+691.Francois Van der Elst 692.Bauer 693.Mihajlovic 694.Zl. Vujovic 695.Waldo Machado 696.Suurbier 697.Angloma 698.Abidal 699.Jurion 700.Quini
+701.Wark 702.Cubilla 703.Revelli 704.Demanenko 705.Katalinski 706.Wilson Piazza 707.Leandro 708.Salvadore 709.J.Charlton 710.Riedle
+711.A. Clarke 712.Jose Aguas 713.F. Gomes 714. Gnabry 715. Coppens 716. Hormazabal 717. Sarti 718.K. Schmeichel 719. Manuel Bento 720.Croy
+721.C.Maldini 722.Ancelotti 723.H. Schafer 724. Basler 725.Perisic 726.Diego Cunha 727.Boloni 728.Kvasnak 729.Juninho Paulista 730.David Luiz
+731.Tamagnini Nene 732.Augenthaler 733.Materazzi 734.Gamarra 735.Cera 736.M. Mills 737.Ivanovic 738.Cambiasso 739.Detari 740.Zmuda
+741.Bagni 742.De Rossi 743.Giannini 744.Zaccarelli .745. Prohaska 746.L. Luque 747.T. Fernandez 748.Sara 749.Sergi 750.Nelinho
+751.Baxter 752.Sparwasser 753.Pastore 754.Aimar 755. Moravcik 756.Samitier 757.Orth 758.Buchan 759.Mata 760.Zavarov
+761.Maneiro 762.Varallo 763.R. Houghton 764.Zahovic 765.Tomasson 766.Belloumi 767.Chinaglia 768.Halilhodzic 769.Camswell 770.Tist Nielsen
+771.Van den Bergh 772.Sheringham 773.Jardel 774.Donato 775.Senna 776.Albertini 777.Capello 778.Giles 779.Mullery 780.Martin Vazquez
+781.Banega 782.Trapattoni 783.Victor Munoz 784. Strachan 785.Gattuso 786.E. Hughes 787.McNeil 788.Ondrus 789.Couto 790.P. Montero
+791.Happel 792.Jordan 793.Bosman 794.Karpin 795.B. Meredith 796.C. Aguilera 797.Zagalo 798.Pepe Macia 799.Pauleta 800.Hakan Sukur
+801.Stabile 802.Santillana 803.Benitez Caceres 804.Conen 805.Probst 806.Binder 807.Dienst 808.Cesar Rodriguez 809.Depay 810.Lehner
+811.Moulijn 812.R. Kennedy 813.Swart 814. Enrique Garcia 815.Juanito 816.Graziani 817.Sormani 818.B. Schneider 819.Jarni 820.Pearce
+821.van Tiggelen 822.G. Neville 823.Battiston 824.Cervato 825.Dietz 826.Panucci 827.Kolarov 828.Asprilla 829.Nyers 830.M. Hughes
+831.I. Wright 832.Montella 833.Solskjear 834.Boksic 835.Werner 836.Diego Costa 837.Pavoni 838.Carvajal 839.Chivu 840.van Bronchorst
+841.Carragher 842.Andy Robertson 843.Hulk 844.Souk 845.Vardy 846.Milosevic 847.Salas 848.Joao Pinto Domingos 849.Petrescu 850.Ray Wilson
+851.Berthold 852.Hilario 853.Janes 854.Juanfran 855.Szymanowski 856.Eyzaguirre 857.Lantos 858.Matic 859.Tomaszewski 860.Hiden
+861.Losi 862.Sensini 863.Coeck 864.Van der Eycken 865.A. Abbeglen 866.Giroud 867.Baltazar O. Da Silva 868.Simonyan 869.George Robledo 870.Blankenburg
+871.Nadal 872.Holcer 873.M. Charles 874.Nelson Gutierrez 875.Quincoces 876.A. Goikoetxea 877.Lorant 878.R. Marquez 879.K. Koulibaly 880.Hart
+881.Taffarell 882.Leao 883.Rammalets 884. JM Reina 885.Gatti 886.Rudakov 887.JP Guerrero 888.Luis Fabiano 889.Ilicic 890.Balaci
+891.Manga 892.Piot 893.Rocheatau 894.Curkovic 895.Maspoli 896.Rustu 897.Walter Gomez 898.Nkono 899.Bats 900.Tilkowski
+901.McDermott 902.Prosinecki 903. Boban 904.Yeboah 905.Emre 906.A. Muhren 907.Pesek Kada 908.Matuidi 909.L. Diarra 910.D. Baggio
+911.Wijnaldum 912.Lama 913.Rogerio Ceni 914. V. Valdes 915.Canhoteiro 916.R. Sosa 917.Sotil 918.Seminario 919.Simoes 920.Carapellese
+921.Nehoda 922.Kirsten 923.Skuhravy 924.Burgsmuller 925.Takacs 926.Kanoute 927.Bloomer 928.H. Michel 929.Valeriano Lopez 930.Wouters
+931.Aaron Ramsey 932.Eckel 933.Jeremies 934.Karagounis 935.Domazos 936.Zagorakis 937.Rufer 938.Rava 939.Anelka 940.Swift
+941.De Harder 942.Chalana 943.Libuda 944.Kanchelskis 945.Oganesyan 946.Clifford Jones 947.R. Flowers 948.Arshavin 949.Coman 950.Kolo Toure
+951.Bonga Bonga 952.Naingoolan 953.A. Valencia 954.Grun 955.Meeuws 956.Helmer 957.Mertesacker 958.Anastasi 959.Matateu 960.Goretzka
+961.Peyroteo 962.Kamamoto 963.Kagawa 964.Fedotov 965.Nakata 966.G. Sigurdsson 967.Le Tissier 968.Lenstra 969.Insigne 970.Vercauteren
+971.Emmerich 972.Recoba 973.Valeron 974.Iago Aspas 975.John A. Hansen 976.Icardi 977.K. Bwalya 978.Petrone 979.Sanfilippo 980.Petschovski
+981.Otamendi 982.Marcelino Caio 983 Gervinho 984.Zorc 985.Des Walker 986.P. Andersson 987.Ancheta 988.Ricardo Rocha 989.Meskhi 990.I. Callagher
+991.Goycoechea 992.JA Bell 993. Victor R. Andrade 994.Gerard Moreno 995.Szusza 996.Pontoni 997.Kostedde 998.Paulinho Alcantara 999.Claudio Christovam da Pinho 1000.Edu Americo

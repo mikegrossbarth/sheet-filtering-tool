@@ -729,6 +729,9 @@ Football $10-$299`, ["custom"], []);
 Soccer $10-$1000`, ["custom"], []);
 
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("ERLING HAALAND 2019 TOPPS CHROME SAPPHIRE PSA 10", "$500"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2022 panini messi prizm psa 10", "$500"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("1958 pele topps alifabolaget psa 7", "$500"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2020 mbappe kaboom psa 10", "$500"), custom), true);
 }
 
 {
