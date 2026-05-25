@@ -65,6 +65,9 @@
   const PLAYER_DISPLAY_NAMES = {};
   const PLAYER_TEAM_HINTS = {};
   const PARTIAL_PLAYER_HINTS = {};
+  const PARTIAL_PLAYER_TOKEN_OVERRIDES = {
+    judge: "aaron judge"
+  };
   const GRADE_COMPANIES = ["psa", "bgs", "sgc", "cgc"];
   const UNGRADED_PATTERN = /\b(raw|sealed|unsealed|unslabbed|ungraded|not\s+graded|no\s+grade)\b/i;
 
@@ -1063,6 +1066,12 @@
     });
 
     Object.entries(tokenMap).forEach(([token, hints]) => {
+      const overrideKey = PARTIAL_PLAYER_TOKEN_OVERRIDES[token];
+      const override = overrideKey ? hints.find((hint) => hint.key === overrideKey) : null;
+      if (override) {
+        PARTIAL_PLAYER_HINTS[token] = override;
+        return;
+      }
       const sports = new Set(hints.map((hint) => hint.sport));
       if (sports.size === 1) {
         PARTIAL_PLAYER_HINTS[token] = hints.sort((a, b) => a.playerName.length - b.playerName.length)[0];

@@ -2,6 +2,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 
 const OUTPUT_FILE = path.join(__dirname, "..", "src", "player-sport-data.js");
+const BASEBALL_FEVER_TOP_1000_FILE = path.join(__dirname, "..", "data", "baseball-fever-top-1000.txt");
 
 const SOURCES = [
   {
@@ -21,6 +22,12 @@ const SOURCES = [
     name: "MLB players directory",
     url: currentMlbPlayersUrl(),
     load: loadMlbPlayers
+  },
+  {
+    sport: "baseball",
+    name: "Baseball Fever top 1000 greatest players",
+    url: "https://www.baseball-fever.com/forum/general-baseball/history-of-the-game/95660-top-1000-greatest-players-ranking",
+    load: loadBaseballFeverTop1000Players
   },
   {
     sport: "football",
@@ -969,12 +976,12 @@ async function main() {
 }
 
 async function fetchText(url) {
+  const parsedUrl = new URL(url);
   const response = await fetch(url, {
     headers: {
       "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "accept-language": "en-US,en;q=0.9",
-      "origin": "https://www.nba.com",
-      "referer": "https://www.nba.com/players",
+      "referer": `${parsedUrl.origin}/`,
       "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 SheetFilteringTool/0.1"
     }
   });
@@ -1373,6 +1380,39 @@ function extractBleacherReportNfl1000(html) {
   }
 
   return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+function extractBaseballFeverTop1000Players(html) {
+  const names = new Set();
+  const text = decodeHtml(stripTags(html))
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const pattern = /(?:^|\s)(?:1000|[1-9]\d{0,2})\.\s+([A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'. -]+?)(?=\s+(?:1000|[1-9]\d{0,2})\.| Last edited|$)/g;
+  let match;
+
+  while ((match = pattern.exec(text))) {
+    const name = match[1].replace(/\s+/g, " ").trim();
+    if (isPlayerName(name)) names.add(name);
+  }
+
+  if (names.size < 900) {
+    throw new Error(`Baseball Fever top 1000 scraper found only ${names.size} player names`);
+  }
+
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+async function loadBaseballFeverTop1000Players() {
+  const text = await fs.readFile(BASEBALL_FEVER_TOP_1000_FILE, "utf8");
+  const players = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*(?:1000|[1-9]\d{0,2})\.\s*/, "").trim())
+    .filter(isPlayerName);
+  if (players.length < 900) {
+    throw new Error(`Bundled Baseball Fever top 1000 list has only ${players.length} player names`);
+  }
+  return players;
 }
 
 function collectNamesFromJson(value, names) {
