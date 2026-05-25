@@ -681,6 +681,7 @@ block: Raw or Sealed`, ["custom"], []);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball sealed", "$1800"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball unsealed", "$1800"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball unslabbed", "$1800"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2020 immaculate stephen curry auto /25", "$898"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball psa 10", "$1800"), custom), true);
 }
 

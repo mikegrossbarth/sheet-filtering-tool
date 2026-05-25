@@ -82,8 +82,15 @@ const compingRules = context.synthesizeRulesFromSheetValues("Comping Standards",
   ["We use CardLadder and ALT for checking all Comps"],
   ["High Pop Count - 5 or more direct sales in the past 14 days"]
 ], {});
+const arenaClubSportFallbackRules = context.synthesizeRulesFromSheetValues("ParametersRanges", [
+  [null, null, null, "Basketball"],
+  [null, null, null, "Price Ranges", `${dollar}10 - ${dollar}299`],
+  [null, null, null, "Price Ranges", `${dollar}2,000 - ${dollar}5,000`],
+  ["NO FADED AUTOS", "NO FADED AUTOS", "(NO DUPLICATES)", "(NO DUPLICATES)"]
+], {});
 
 assert.deepEqual(payoutRules, []);
 assert.deepEqual(compingRules, []);
+assert.deepEqual(arenaClubSportFallbackRules, []);
 
 console.log("background rule tests passed");

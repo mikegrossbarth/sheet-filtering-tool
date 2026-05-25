@@ -357,7 +357,7 @@
   function specialBlockMatches(raw, value, haystack) {
     const rule = cleanRuleText(raw);
 
-    if (/\b(raw|sealed|unsealed|unslabbed|ungraded)\b/i.test(rule) && value.isUngraded) {
+    if (/\b(raw|sealed|unsealed|unslabbed|ungraded)\b/i.test(rule) && valueIsUngraded(value)) {
       return true;
     }
 
@@ -399,6 +399,10 @@
     if (/\bwnba\b/i.test(haystack)) return true;
     if (cleanRuleText(value.sport || "") === "wnba") return true;
     return (value.sportCorrelations || []).some((correlation) => cleanRuleText(correlation.sport || "") === "wnba");
+  }
+
+  function valueIsUngraded(value) {
+    return Boolean(value.isUngraded || (!value.gradeCompany && !value.grade));
   }
 
   function normalizeCustomRules(rules) {

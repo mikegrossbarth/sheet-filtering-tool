@@ -499,6 +499,9 @@ function synthesizeRulesFromSheetValues(title, values, context = {}) {
 
   const specialized = synthesizeArenaClubRules(values, context);
   if (specialized.length) return specialized;
+  if (/parametersranges|parameters ranges/i.test(cleanRuleLabel(title)) && isArenaClubParametersSheet(values)) {
+    return [];
+  }
 
   const rules = [];
   const titleHint = cleanRuleText(title);
@@ -720,6 +723,10 @@ function synthesizeArenaClubRules(values, context = {}) {
     return [...new Set(rules)];
   }
 
+  if (isArenaClubParametersSheet(values)) {
+    return [];
+  }
+
   values.forEach((row) => {
     row.forEach((cell, index) => {
       if (!/^price ranges?$/i.test(String(cell || "").trim())) return;
@@ -732,6 +739,14 @@ function synthesizeArenaClubRules(values, context = {}) {
   });
 
   return [...new Set(rules)];
+}
+
+function isArenaClubParametersSheet(values) {
+  return values.some((row) =>
+    row.some((cell) => /brady|kobe|lebron|kaboom|downtown|goats?|color blast|manga/i.test(String(cell || "")))
+  ) || values.some((row) =>
+    row.some((cell) => /only best players|see goat tab|no faded autos|no duplicates/i.test(String(cell || "")))
+  );
 }
 
 function synthesizeArenaClubCategoryTableRules(values, context = {}) {
