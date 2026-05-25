@@ -218,6 +218,7 @@ const SEED_PLAYERS = {
     "John Mackey",
     "Kellen Winslow",
     "Mike Ditka",
+    "Jeremy Shockey",
     "Anthony Munoz",
     "Orlando Pace",
     "Jonathan Ogden",

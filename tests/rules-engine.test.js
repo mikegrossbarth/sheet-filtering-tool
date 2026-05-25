@@ -714,7 +714,7 @@ block: Raw or Sealed`, ["custom"], []);
 Football $10-$299
 Hockey $10-$1000`, ["custom"], []);
 
-  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("JEREMY SHOCKEY 2025 NATIONAL TREASURES GLADIATORS AUTO PSA 10", "$225"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("JEREMY SHOCKEY 2025 NATIONAL TREASURES GLADIATORS AUTO PSA 10", "$225"), custom), true);
 }
 
 {
