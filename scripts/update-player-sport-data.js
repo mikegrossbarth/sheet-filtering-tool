@@ -28,6 +28,12 @@ const SOURCES = [
     load: loadEspnNflPlayers
   },
   {
+    sport: "football",
+    name: "Bleacher Report NFL 1000",
+    url: "https://bleacherreport.com/articles/2517805-br-nfl-1000-top-1000-players",
+    extract: extractBleacherReportNfl1000
+  },
+  {
     sport: "pokemon",
     name: "PokemonDB National Pokedex",
     url: "https://pokemondb.net/pokedex/national",
@@ -1342,6 +1348,31 @@ async function loadNhlActivePlayers() {
   }
 
   return players.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function extractBleacherReportNfl1000(html) {
+  const names = new Set();
+  const text = decodeHtml(stripTags(html))
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const positions = "(?:(?:3-4|4-3)\\s+)?[A-Z]{1,3}";
+  const nameToken = "[A-Z][A-Za-z'.-]+";
+  const pattern = new RegExp(`(?:^|\\s)(?:1000|[1-9]\\d{0,2})\\s+(${nameToken}(?:\\s+${nameToken}){1,5}?)\\s+${positions}\\s+\\d{2,3}(?=\\s|$)`, "g");
+  let match;
+
+  while ((match = pattern.exec(text))) {
+    const name = match[1].replace(/\s+/g, " ").trim();
+    if (isPlayerName(name) && !/Player Rankings|Overall Rank|Previous Next/i.test(name)) {
+      names.add(name);
+    }
+  }
+
+  if (!names.size) {
+    throw new Error("Bleacher Report NFL 1000 scraper could not find player names");
+  }
+
+  return [...names].sort((a, b) => a.localeCompare(b));
 }
 
 function collectNamesFromJson(value, names) {
