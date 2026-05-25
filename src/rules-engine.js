@@ -11,6 +11,7 @@
     baseball: ["baseball", "mlb"],
     basketball: ["basketball", "b-ball", "bball", "nba"],
     hockey: ["hockey", "nhl"],
+    wnba: ["wnba"],
     pokemon: ["pokemon", "poke"],
     "one piece": ["one piece", "onepiece", "one_piece", "1 piece"]
   };
@@ -39,7 +40,26 @@
     "lionel messi": "soccer",
     "cristiano ronaldo": "soccer",
     "connor bedard": "hockey",
-    "wayne gretzky": "hockey"
+    "wayne gretzky": "hockey",
+    "aja wilson": "wnba",
+    "a'ja wilson": "wnba",
+    "caitlin clark": "wnba",
+    "angel reese": "wnba",
+    "sabrina ionescu": "wnba",
+    "breanna stewart": "wnba",
+    "diana taurasi": "wnba",
+    "sue bird": "wnba",
+    "candace parker": "wnba",
+    "napheesa collier": "wnba",
+    "kelsey plum": "wnba",
+    "aliyah boston": "wnba",
+    "paige bueckers": "wnba",
+    "skylar diggins": "wnba",
+    "elena delle donne": "wnba",
+    "brittney griner": "wnba",
+    "maya moore": "wnba",
+    "lisa leslie": "wnba",
+    "sheryl swoopes": "wnba"
   };
 
   const PLAYER_DISPLAY_NAMES = {};
@@ -338,6 +358,18 @@
       return true;
     }
 
+    if (/\bvintage\b/i.test(rule) && Number(value.year) > 0 && Number(value.year) < 1975) {
+      return true;
+    }
+
+    if (/\bcollegiate\b/i.test(rule) && /\bcollegiate\b/i.test(haystack)) {
+      return true;
+    }
+
+    if (/\bwnba\b/i.test(rule) && valueMatchesWnba(value, haystack)) {
+      return true;
+    }
+
     if (
       /\bdowntowns?\b/i.test(rule) &&
       /\b(don t|do not|dont|don['’]?t|never|avoid|don buy|do buy any right now)\b/i.test(rule) &&
@@ -358,6 +390,12 @@
     }
 
     return false;
+  }
+
+  function valueMatchesWnba(value, haystack) {
+    if (/\bwnba\b/i.test(haystack)) return true;
+    if (cleanRuleText(value.sport || "") === "wnba") return true;
+    return (value.sportCorrelations || []).some((correlation) => cleanRuleText(correlation.sport || "") === "wnba");
   }
 
   function normalizeCustomRules(rules) {

@@ -684,4 +684,20 @@ block: Raw or Sealed`, ["custom"], []);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball psa 10", "$1800"), custom), true);
 }
 
+{
+  const [custom] = engine.buildRuleSets(`[Custom]
+Basketball $100-$5000
+Baseball $100-$5000
+block: Vintage
+block: Collegiate
+block: WNBA`, ["custom"], []);
+
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("1974 topps hank aaron psa 8", "$1000"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("1975 topps hank aaron psa 8", "$1000"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 bowman collegiate caitlin clark psa 10", "$1000"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini wnba caitlin clark psa 10", "$1000"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm aja wilson psa 10", "$1000"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 panini prizm lamelo ball psa 10", "$1000"), custom), true);
+}
+
 console.log("rules-engine tests passed");
