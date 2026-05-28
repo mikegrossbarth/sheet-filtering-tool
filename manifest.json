@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sheet Filtering Tool",
   "description": "Reviews open Google Sheets against saved custom filtering rules.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "icons": {
     "16": "assets/store/icon-16.png",
     "32": "assets/store/icon-32.png",
@@ -18,7 +18,7 @@
     "https://sheets.googleapis.com/*"
   ],
   "oauth2": {
-    "client_id": "414248778969-8s9nifluqf5qau3cokqg192crnapcvrq.apps.googleusercontent.com",
+    "client_id": "414248778969-rndm1rj8ts7784tpuecdjn5tv9cin24i.apps.googleusercontent.com",
     "scopes": ["https://www.googleapis.com/auth/spreadsheets"]
   },
   "background": {

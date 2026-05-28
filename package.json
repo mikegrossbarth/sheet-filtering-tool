@@ -1,6 +1,6 @@
 {
   "name": "sheet-filtering-tool",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "scripts": {
     "check": "node --check src/background.js && node --check src/popup.js && node --check src/sheets-content.js && node --check src/keep-content.js && node --check src/player-sport-data.js && node --check src/rules-engine.js && node --check scripts/update-player-sport-data.js && node --check scripts/enrich-player-teams.js && node tests/rules-engine.test.js && node tests/background-rules.test.js && node tests/manifest.test.js",
