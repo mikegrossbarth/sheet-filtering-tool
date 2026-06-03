@@ -655,7 +655,7 @@ function normalizePriceForRowText(value) {
 }
 
 function extractPriceFromRowCells(row, headers = []) {
-  const priceHeaderIndex = headers.findIndex((header) => headerSemantic(header) === "price");
+  const priceHeaderIndex = findPriceHeaderIndex(headers);
   if (priceHeaderIndex >= 0) {
     return parsePriceCell(row[priceHeaderIndex], { allowPlainInteger: true });
   }
@@ -682,6 +682,28 @@ function extractPriceFromRowCells(row, headers = []) {
   }
 
   return null;
+}
+
+function findPriceHeaderIndex(headers = []) {
+  return headers
+    .map((header, index) => ({
+      index,
+      semantic: headerSemantic(header),
+      priority: priceHeaderPriority(header)
+    }))
+    .filter(({ semantic }) => semantic === "price")
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)[0]?.index ?? -1;
+}
+
+function priceHeaderPriority(header) {
+  const value = String(header || "")
+    .toLowerCase()
+    .replace(/[#:_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (/\b(estimate|est\.?|estimated value|value|market value|comp value)\b/.test(value)) return 0;
+  if (/\b(purchase|paid|paid price|buy price|acquisition|cost basis)\b/.test(value)) return 2;
+  return 1;
 }
 
 function parsePriceCell(value, options = {}) {
