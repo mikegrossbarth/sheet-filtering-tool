@@ -143,7 +143,7 @@ async function reviewExportedRows(ruleSets, rows) {
 
     const value = window.AutoSheetReviewRules.parseCardRow(description || rowText, rowText);
     const explicitPrice = extractPriceFromRowCells(row, headers);
-    if (value.price == null && explicitPrice != null) value.price = explicitPrice;
+    if (explicitPrice != null) value.price = explicitPrice;
     const itemKey = duplicateKeyForValue(value);
     const duplicateWarningsEnabled = window.AutoSheetReviewRules.valueUsesDuplicateWarning?.(value, ruleSets);
     const isDuplicate = itemKey && seenItems.has(itemKey);
@@ -196,7 +196,7 @@ function reviewVisibleRows(ruleSets) {
 
     const value = window.AutoSheetReviewRules.parseCardRow(description || rowText, rowText);
     const explicitPrice = extractPriceFromRowCells(rowTexts, visibleHeaders);
-    if (value.price == null && explicitPrice != null) value.price = explicitPrice;
+    if (explicitPrice != null) value.price = explicitPrice;
     recordSportCorrelation(sportSummary, value);
     const matchesAnySelectedRuleSet = ruleSets.some((ruleSet) =>
       window.AutoSheetReviewRules.valueMatchesRuleSet(value, ruleSet)
@@ -655,10 +655,8 @@ function normalizePriceForRowText(value) {
 }
 
 function extractPriceFromRowCells(row, headers = []) {
-  const priceHeaderIndex = findPriceHeaderIndex(headers);
-  if (priceHeaderIndex >= 0) {
-    return parsePriceCell(row[priceHeaderIndex], { allowPlainInteger: true });
-  }
+  const headerPrice = findPriceFromHeaderCells(row, headers);
+  if (headerPrice != null) return headerPrice;
 
   const nonEmptyCells = row.map((cell) => String(cell || "").trim()).filter(Boolean);
   if (nonEmptyCells.length === 2) {
@@ -684,15 +682,24 @@ function extractPriceFromRowCells(row, headers = []) {
   return null;
 }
 
-function findPriceHeaderIndex(headers = []) {
-  return headers
+function findPriceFromHeaderCells(row = [], headers = []) {
+  const candidates = headers
     .map((header, index) => ({
       index,
       semantic: headerSemantic(header),
-      priority: priceHeaderPriority(header)
+      priority: priceHeaderPriority(header),
+      raw: String(row[index] || "").trim(),
+      price: parsePriceCell(row[index], { allowPlainInteger: true })
     }))
     .filter(({ semantic }) => semantic === "price")
-    .sort((a, b) => a.priority - b.priority || a.index - b.index)[0]?.index ?? -1;
+    .filter(({ price }) => price != null);
+  if (!candidates.length) return null;
+
+  const bestPriority = Math.min(...candidates.map(({ priority }) => priority));
+  const bestCandidates = candidates.filter(({ priority }) => priority === bestPriority);
+  return bestCandidates
+    .sort((a, b) => priceCellScore(b.raw, b.price) - priceCellScore(a.raw, a.price) || b.index - a.index)[0]
+    .price;
 }
 
 function priceHeaderPriority(header) {
@@ -704,6 +711,14 @@ function priceHeaderPriority(header) {
   if (/\b(estimate|est\.?|estimated value|value|market value|comp value)\b/.test(value)) return 0;
   if (/\b(purchase|paid|paid price|buy price|acquisition|cost basis)\b/.test(value)) return 2;
   return 1;
+}
+
+function priceCellScore(raw, price) {
+  let score = 0;
+  if (/^\$/.test(String(raw || "").trim())) score += 4;
+  if (!isConfidenceLikeCell(raw)) score += 2;
+  if (Number(price) >= 10) score += 1;
+  return score;
 }
 
 function parsePriceCell(value, options = {}) {
