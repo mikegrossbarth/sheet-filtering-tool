@@ -463,6 +463,10 @@ block: 1990s Michael Jordan`;
 
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2023 panini prizm ja morant psa 10", "$100"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 optic jayden daniels psa 10", "$30"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow(
+    "2024 Topps Chrome Jayden Daniels Pink Refractor 201",
+    "119812982 Anthony PSA 2024 Topps Chrome Jayden Daniels Pink Refractor 201 g9 4 $30.80"
+  ), custom), true);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 optic jayden daniels psa 10", "$60"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 bowman chrome drake maye psa 10", "$400"), custom), true);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 bowman chrome drake maye psa 10", "$600"), custom), false);

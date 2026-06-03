@@ -109,6 +109,7 @@ const doNotBuyRules = context.synthesizeRulesFromSheetValues("Do Not Buy", [
   ["2024 Optic and Donruss Football / Basketball Downtowns - Don't buy any right now."],
   ["Albert Pujols cards over $300"],
   ["Players to not buy over $50"],
+  ["Football"],
   ["Jayden Daniels"],
   ["Never Buy"],
   ["Ja Morant"]

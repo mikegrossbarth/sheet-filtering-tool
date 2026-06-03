@@ -773,7 +773,7 @@ function synthesizeDoNotBuyRules(values) {
 
     const section = parseDoNotBuySection(text);
     if (section) {
-      sectionMaxPrice = section.maxPrice;
+      if (!section.keepCurrentPrice) sectionMaxPrice = section.maxPrice;
       return;
     }
 
@@ -795,10 +795,18 @@ function parseDoNotBuySection(value) {
   if (thresholdMatch) {
     return { maxPrice: parseRuleNumber(thresholdMatch[1]) };
   }
+  if (isDoNotBuyCategoryHeading(text)) {
+    return { keepCurrentPrice: true };
+  }
   if (isDoNotBuyHeading(text)) {
     return { maxPrice: null };
   }
   return null;
+}
+
+function isDoNotBuyCategoryHeading(value) {
+  return /^(?:basketball|football|baseball|soccer|hockey|wnba|collegiate|vintage|notes?)$/i
+    .test(String(value || "").trim());
 }
 
 function isDoNotBuyHeading(value) {
