@@ -102,6 +102,22 @@ soccer $50 to $1200`;
 }
 
 {
+  const rayDavis = engine.parseCardRow(
+    "2024 Panini Donruss Ray Davis Optic Preview-Pink 316",
+    "Anthony PSA 2024 Panini Donruss Ray Davis Optic Preview-Pink 316 g10 50 3"
+  );
+  const snorlax = engine.parseCardRow(
+    "1999 Jungle - Unlimited - English Snorlax Rare Holo 11/64",
+    "Anthony CGC 1999 Jungle - Unlimited - English Snorlax Rare Holo 11/64 g7_5 101 6"
+  );
+
+  assert.equal(rayDavis.gradeCompany, "PSA");
+  assert.equal(rayDavis.grade, 10);
+  assert.equal(snorlax.gradeCompany, "CGC");
+  assert.equal(snorlax.grade, 7.5);
+}
+
+{
   const rowText = "Shohei Ohtani 2025 Topps Now N/A 1/25 $250";
   const parsed = engine.parseCardRow("Shohei Ohtani 2025 Topps Now 1/25", rowText);
 
