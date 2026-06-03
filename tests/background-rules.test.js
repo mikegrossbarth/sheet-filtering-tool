@@ -107,7 +107,11 @@ const doNotBuyRules = context.synthesizeRulesFromSheetValues("Do Not Buy", [
   ["Raw or Sealed"],
   ["Michael Jordan 90s"],
   ["2024 Optic and Donruss Football / Basketball Downtowns - Don't buy any right now."],
-  ["Albert Pujols cards over $300"]
+  ["Albert Pujols cards over $300"],
+  ["Players to not buy over $50"],
+  ["Jayden Daniels"],
+  ["Never Buy"],
+  ["Ja Morant"]
 ], {});
 
 assert.deepEqual(payoutRules, []);
@@ -122,5 +126,7 @@ assert.ok(doNotBuyRules.includes("block: Raw or Sealed"));
 assert.ok(doNotBuyRules.includes("block: Michael Jordan 90s"));
 assert.ok(doNotBuyRules.includes("block: 2024 Optic and Donruss Football / Basketball Downtowns - Don't buy any right now."));
 assert.ok(doNotBuyRules.includes("block: Albert Pujols over 300"));
+assert.ok(doNotBuyRules.includes("block: Jayden Daniels over 50"));
+assert.ok(doNotBuyRules.includes("block: Ja Morant"));
 
 console.log("background rule tests passed");

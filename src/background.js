@@ -761,11 +761,19 @@ function isGradedGrailsTable(values) {
 
 function synthesizeDoNotBuyRules(values) {
   const rules = [];
+  let sectionMaxPrice = null;
+
   values.flat().forEach((cell) => {
     const text = cleanRuleLabel(cell)
       .replace(/^\d+[.)]\s*/, "")
       .trim();
-    if (!text || isDoNotBuyHeading(text)) {
+    if (!text) {
+      return;
+    }
+
+    const section = parseDoNotBuySection(text);
+    if (section) {
+      sectionMaxPrice = section.maxPrice;
       return;
     }
 
@@ -776,13 +784,25 @@ function synthesizeDoNotBuyRules(values) {
       return;
     }
 
-    rules.push(`block: ${text}`);
+    rules.push(sectionMaxPrice != null ? `block: ${text} over ${sectionMaxPrice}` : `block: ${text}`);
   });
   return [...new Set(rules)];
 }
 
+function parseDoNotBuySection(value) {
+  const text = String(value || "").trim();
+  const thresholdMatch = text.match(/(?:do\s+not|don['’]?t|dont|not|never|avoid).{0,40}?\bover\s+\$?([\d,]+(?:\.\d+)?k?)/i);
+  if (thresholdMatch) {
+    return { maxPrice: parseRuleNumber(thresholdMatch[1]) };
+  }
+  if (isDoNotBuyHeading(text)) {
+    return { maxPrice: null };
+  }
+  return null;
+}
+
 function isDoNotBuyHeading(value) {
-  return /^(?:never buy|players to never buy|players to avoid|basketball|football|baseball|soccer|hockey|wnba|collegiate|vintage|currently avoiding(?: buying)?|pausing\/limiting|notes?)$/i
+  return /^(?:do not buy|don't buy|dont buy|never buy|players to never buy|players to avoid|players to not buy|players not to buy|basketball|football|baseball|soccer|hockey|wnba|collegiate|vintage|currently avoiding(?: buying)?|pausing\/limiting|notes?)$/i
     .test(String(value || "").trim());
 }
 

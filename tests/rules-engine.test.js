@@ -438,6 +438,7 @@ Basketball $10-$5000
 Football $10-$5000
 Baseball $10-$5000
 block: Ja Morant
+block: Jayden Daniels over 50
 block: Drake Maye over 500
 block: 2001 Pujols Topps Chrome (all grades)
 block: 2024 Optic and Donruss Football / Basketball Downtowns - Don't buy any right now.
@@ -445,6 +446,8 @@ block: 1990s Michael Jordan`;
   const [custom] = engine.buildRuleSets(note, ["custom"], []);
 
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2023 panini prizm ja morant psa 10", "$100"), custom), false);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 optic jayden daniels psa 10", "$30"), custom), true);
+  assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 optic jayden daniels psa 10", "$60"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 bowman chrome drake maye psa 10", "$400"), custom), true);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2024 bowman chrome drake maye psa 10", "$600"), custom), false);
   assert.equal(engine.valueMatchesRuleSet(engine.parseCardRow("2001 topps chrome albert pujols psa 10", "$1000"), custom), false);
