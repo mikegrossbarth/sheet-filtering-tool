@@ -668,6 +668,14 @@ function extractPriceFromRowCells(row, headers = []) {
     const price = parsePriceCell(cell, { allowPlainInteger: false });
     if (price != null) return price;
   }
+
+  const plainNumberCandidates = row
+    .map((cell, index) => ({ cell: String(cell || "").trim(), index }))
+    .filter(({ index }) => index > 0)
+    .map(({ cell }) => parsePlainNumberPriceCandidate(cell))
+    .filter((price) => price != null);
+  if (plainNumberCandidates.length) return plainNumberCandidates[plainNumberCandidates.length - 1];
+
   return null;
 }
 
@@ -680,6 +688,17 @@ function parsePriceCell(value, options = {}) {
   if (!match) return null;
   const numeric = Number(`${match[1].replace(/,/g, "")}.${match[2] || "0"}`);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function parsePlainNumberPriceCandidate(value) {
+  const text = String(value || "").trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(text)) return null;
+  const numeric = Number(text);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric < 10) return null;
+  if (numeric >= 1900 && numeric <= 2099) return null;
+  if (text.length >= 6) return null;
+  return numeric;
 }
 
 function fieldList(value) {

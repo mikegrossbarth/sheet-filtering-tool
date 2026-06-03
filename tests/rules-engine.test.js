@@ -92,6 +92,16 @@ soccer $50 to $1200`;
 }
 
 {
+  const rowText = "75435342 Blake PSA 2022 Panini Donruss George Pickens Press Proof Premium 323 g9 25 5";
+  const parsed = engine.parseCardRow("2022 Panini Donruss George Pickens Press Proof Premium 323", rowText);
+
+  assert.equal(parsed.playerName, "George Pickens");
+  assert.equal(parsed.sport, "football");
+  assert.equal(parsed.gradeCompany, "PSA");
+  assert.equal(parsed.grade, 9);
+}
+
+{
   const rowText = "Shohei Ohtani 2025 Topps Now N/A 1/25 $250";
   const parsed = engine.parseCardRow("Shohei Ohtani 2025 Topps Now 1/25", rowText);
 

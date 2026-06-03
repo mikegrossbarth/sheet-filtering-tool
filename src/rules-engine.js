@@ -734,6 +734,8 @@
     const priceMatch = rawText.match(/\$\s*(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d{2})?\b/);
     const numericCellMatch = rawText.trim().match(/^(\d{1,3}(?:,\d{3})*|\d+)(?:\.\d{1,2})?$/);
     const gradeMatch = rawText.match(/\b(PSA|BGS|SGC|CGC)\s*\D{0,24}?\s*(10|9\.5|9|8\.5|8|7|6|5|4|3|2|1)\b/i);
+    const separatedGradeCompanyMatch = rawText.match(/\b(PSA|BGS|SGC|CGC)\b/i);
+    const separatedGradeMatch = rawText.match(/\bg\s*(10|9\.5|9|8\.5|8|7|6|5|4|3|2|1)\b/i);
     const isUngraded = !gradeMatch && UNGRADED_PATTERN.test(rawText);
     return {
       text: rawText,
@@ -742,8 +744,8 @@
         : numericCellMatch
           ? Number(numericCellMatch[0].replace(/,/g, ""))
           : null,
-      gradeCompany: gradeMatch ? gradeMatch[1].toUpperCase() : null,
-      grade: gradeMatch ? Number(gradeMatch[2]) : null,
+      gradeCompany: gradeMatch ? gradeMatch[1].toUpperCase() : separatedGradeCompanyMatch ? separatedGradeCompanyMatch[1].toUpperCase() : null,
+      grade: gradeMatch ? Number(gradeMatch[2]) : separatedGradeMatch ? Number(separatedGradeMatch[1]) : null,
       isUngraded
     };
   }
