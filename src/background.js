@@ -761,32 +761,45 @@ function isGradedGrailsTable(values) {
 
 function synthesizeDoNotBuyRules(values) {
   const rules = [];
-  let sectionMaxPrice = null;
+  const maxColumns = Math.max(0, ...values.map((row) => row.length));
+  const sectionMaxPriceByColumn = Array(maxColumns).fill(null);
 
-  values.flat().forEach((cell) => {
-    const text = cleanRuleLabel(cell)
-      .replace(/^\d+[.)]\s*/, "")
-      .trim();
-    if (!text) {
-      return;
-    }
+  values.forEach((row) => {
+    applyDoNotBuySectionHeadings(row, sectionMaxPriceByColumn);
 
-    const section = parseDoNotBuySection(text);
-    if (section) {
-      if (!section.keepCurrentPrice) sectionMaxPrice = section.maxPrice;
-      return;
-    }
+    row.forEach((cell, columnIndex) => {
+      const text = cleanRuleLabel(cell)
+        .replace(/^\d+[.)]\s*/, "")
+        .trim();
+      if (!text || parseDoNotBuySection(text)) {
+        return;
+      }
 
-    const overMatch = text.match(/^(.+?)\s+(?:cards\s+)?over\s+\$?([\d,]+(?:\.\d+)?k?)\+?(?:\s+value)?/i)
-      || text.match(/^(.+?)\s+\$?([\d,]+(?:\.\d+)?k?)\+$/i);
-    if (overMatch) {
-      rules.push(`block: ${overMatch[1].trim()} over ${parseRuleNumber(overMatch[2])}`);
-      return;
-    }
+      const overMatch = text.match(/^(.+?)\s+(?:cards\s+)?over\s+\$?([\d,]+(?:\.\d+)?k?)\+?(?:\s+value)?/i)
+        || text.match(/^(.+?)\s+\$?([\d,]+(?:\.\d+)?k?)\+$/i);
+      if (overMatch) {
+        rules.push(`block: ${overMatch[1].trim()} over ${parseRuleNumber(overMatch[2])}`);
+        return;
+      }
 
-    rules.push(sectionMaxPrice != null ? `block: ${text} over ${sectionMaxPrice}` : `block: ${text}`);
+      const sectionMaxPrice = sectionMaxPriceByColumn[columnIndex];
+      rules.push(sectionMaxPrice != null ? `block: ${text} over ${sectionMaxPrice}` : `block: ${text}`);
+    });
   });
   return [...new Set(rules)];
+}
+
+function applyDoNotBuySectionHeadings(row, sectionMaxPriceByColumn) {
+  const headings = row
+    .map((cell, index) => ({ index, section: parseDoNotBuySection(cleanRuleLabel(cell)) }))
+    .filter(({ section }) => section && !section.keepCurrentPrice);
+
+  headings.forEach(({ index, section }, headingIndex) => {
+    const nextIndex = headings[headingIndex + 1]?.index ?? sectionMaxPriceByColumn.length;
+    for (let column = index; column < nextIndex; column += 1) {
+      sectionMaxPriceByColumn[column] = section.maxPrice;
+    }
+  });
 }
 
 function parseDoNotBuySection(value) {
