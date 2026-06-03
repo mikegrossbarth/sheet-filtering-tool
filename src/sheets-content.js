@@ -642,7 +642,8 @@ function headerSemantic(header) {
   if (/\b(cert|certificate|certification|serial cert)\b/.test(value)) return "cert";
   if (/\b(serial|numbering|numbered|print run)\b/.test(value)) return "numbering";
   if (/\b(card number|card no)\b/.test(value)) return "cardNumber";
-  if (/\b(price|cost|value|ask|asking|buy|payout|comp)\b/.test(value)) return "price";
+  if (/\b(price|cost|value|estimate|est\.?|estimated value|ask|asking|buy|payout|comp)\b/.test(value)) return "price";
+  if (/\b(confidence|conf|certainty|score)\b/.test(value)) return "confidence";
   if (/^team$|\b(team name|club)\b/.test(value)) return "team";
   if (/^sport$|\bleague\b/.test(value)) return "sport";
   return "";
@@ -672,9 +673,13 @@ function extractPriceFromRowCells(row, headers = []) {
   const plainNumberCandidates = row
     .map((cell, index) => ({ cell: String(cell || "").trim(), index }))
     .filter(({ index }) => index > 0)
-    .map(({ cell }) => parsePlainNumberPriceCandidate(cell))
-    .filter((price) => price != null);
-  if (plainNumberCandidates.length) return plainNumberCandidates[plainNumberCandidates.length - 1];
+    .map(({ cell }) => ({ text: cell, price: parsePlainNumberPriceCandidate(cell) }))
+    .filter(({ price }) => price != null);
+  if (plainNumberCandidates.length) {
+    const nonConfidenceCandidates = plainNumberCandidates.filter(({ text }) => !isConfidenceLikeCell(text));
+    const candidates = nonConfidenceCandidates.length ? nonConfidenceCandidates : plainNumberCandidates;
+    return candidates[candidates.length - 1].price;
+  }
 
   return null;
 }
@@ -699,6 +704,13 @@ function parsePlainNumberPriceCandidate(value) {
   if (numeric >= 1900 && numeric <= 2099) return null;
   if (text.length >= 6) return null;
   return numeric;
+}
+
+function isConfidenceLikeCell(value) {
+  const text = String(value || "").trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(text)) return false;
+  const numeric = Number(text);
+  return Number.isFinite(numeric) && numeric >= 0 && numeric <= 10;
 }
 
 function fieldList(value) {
