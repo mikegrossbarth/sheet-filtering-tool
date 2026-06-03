@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sheet Filtering Tool",
   "description": "Reviews open Google Sheets against saved custom filtering rules.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "icons": {
     "16": "assets/store/icon-16.png",
     "32": "assets/store/icon-32.png",

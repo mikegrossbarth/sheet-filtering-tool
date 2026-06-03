@@ -919,7 +919,11 @@ async function fetchGoogleSheetRulesWorkbook(url) {
     throw new Error("Add a Google Sheets rules file URL.");
   }
 
-  const response = await chrome.runtime.sendMessage({ action: "readRulesWorkbook", url });
+  const response = await sendMessageWithTimeout(
+    { action: "readRulesWorkbook", url },
+    45000,
+    "Google Sheets rules load timed out. Make sure this account can open the linked rules sheet, then try again."
+  );
   if (!response?.success) {
     throw new Error(friendlyGoogleSheetError(response?.error));
   }
@@ -934,10 +938,29 @@ async function fetchGoogleSheetRulesWorkbook(url) {
   return workbook;
 }
 
+function sendMessageWithTimeout(message, timeoutMs, timeoutMessage) {
+  let timer;
+  return Promise.race([
+    chrome.runtime.sendMessage(message),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    })
+  ]).finally(() => clearTimeout(timer));
+}
+
 function friendlyGoogleSheetError(error) {
   const message = String(error || "");
   if (/\b429\b|quota exceeded/i.test(message)) {
     return "Google Sheets read quota was hit. Wait about a minute, then run Review Sheet again.";
+  }
+  if (/\b401\b|bad client id|oauth|auth/i.test(message)) {
+    return "Google Sheets authorization failed. Reopen the extension, approve Google access, and confirm the installed version is current.";
+  }
+  if (/\b403\b|permission|forbidden/i.test(message)) {
+    return "Could not access the linked rules sheet. Share the rules Google Sheet with this user's Google account, then try again.";
+  }
+  if (/timed out|timeout/i.test(message)) {
+    return message;
   }
   return message || "Could not read Google Sheets rules workbook.";
 }

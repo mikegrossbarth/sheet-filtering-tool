@@ -55,7 +55,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.action === "readRulesWorkbook") {
-    readRulesWorkbook(message.url)
+    withTimeout(
+      readRulesWorkbook(message.url),
+      40000,
+      "Google Sheets rules load timed out. Confirm this Google account can open the linked rules sheet, then try again."
+    )
       .then((result) => sendResponse({ success: true, ...result }))
       .catch((error) => sendResponse({ success: false, error: error.message }));
     return true;
@@ -409,9 +413,22 @@ async function readRulesWorkbook(url) {
 }
 
 async function fetchSheetsApiJson(url, token) {
-  const response = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` }
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(url, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Google Sheets rules request timed out.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   const text = await response.text();
   if (!response.ok) {
     throw new Error(`Google Sheets rules read failed (${response.status}): ${text.slice(0, 180)}`);
@@ -1001,7 +1018,7 @@ function buildRowFillRequests(rows, sheetId, columnCount, backgroundColor) {
 }
 
 function getGoogleSheetsToken() {
-  return new Promise((resolve, reject) => {
+  return withTimeout(new Promise((resolve, reject) => {
     if (!chrome.identity?.getAuthToken) {
       reject(new Error("Chrome identity permission is not available."));
       return;
@@ -1018,7 +1035,17 @@ function getGoogleSheetsToken() {
       }
       resolve(token);
     });
-  });
+  }), 20000, "Google Sheets OAuth timed out. Reopen the extension and approve Google access.");
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    })
+  ]).finally(() => clearTimeout(timer));
 }
 
 async function configureForTab(tabId, tab) {
