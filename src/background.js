@@ -353,10 +353,17 @@ async function fillReviewedSheetRows(message) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Google Sheets fill failed (${response.status}): ${text.slice(0, 180)}`);
+    throw new Error(friendlyFillColorError(response.status, text));
   }
 
   return { filled: rows.length, warned: warningRows.length, cleared: 1 };
+}
+
+function friendlyFillColorError(status, text) {
+  if (/Office file|FAILED_PRECONDITION|not supported for this document/i.test(text)) {
+    return "This workbook is still an Excel/Office file. Open it in Google Sheets and use File > Save as Google Sheets before running Review Sheet.";
+  }
+  return `Google Sheets fill failed (${status}): ${String(text || "").slice(0, 180)}`;
 }
 
 async function readRulesWorkbook(url) {
