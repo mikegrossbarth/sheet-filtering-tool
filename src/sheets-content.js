@@ -708,6 +708,7 @@ function priceHeaderPriority(header) {
     .replace(/[#:_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  if (/^(?:comps?|comp value|comped value|market comps?)$/.test(value)) return -1;
   if (/\b(estimate|est\.?|estimated value|value|market value|comp value)\b/.test(value)) return 0;
   if (/\b(purchase|paid|paid price|buy price|acquisition|cost basis)\b/.test(value)) return 2;
   return 1;
